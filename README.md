@@ -1,14 +1,11 @@
-# POS Next
+# POS ABS
 
 <div align="center">
 
 ![POS Next Banner](docs/screenshots/01-main-dashboard.png)
 
-**A modern, lightning-fast Point of Sale system for ERPNext**
+**A modern, lightning-fast Point of Sale system for ERP ABS**
 
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
-[![Frappe Version](https://img.shields.io/badge/Frappe-v15+-orange.svg)](https://github.com/frappe/frappe)
-[![ERPNext Version](https://img.shields.io/badge/ERPNext-v15+-green.svg)](https://github.com/frappe/erpnext)
 
 [Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Demo](#-demo) • [Documentation](#-documentation)
 
@@ -33,13 +30,7 @@ POS Next is a **complete rewrite** of the ERPNext POS system, built from the gro
 
 ![Sales Cycle Demo](docs/screenshots/sales-cycle.gif)
 
-## 📞 Support & Community
 
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/BrainWise-DEV/pos_next/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/BrainWise-DEV/pos_next/discussions)
-- 📖 **Forum**: [Frappe Community](https://discuss.frappe.io/)
-- 📱 **Telegram Group**: [Join our community](https://t.me/+J2WHnNKCn8ZhOWQ0) - Get help, share ideas, and connect with other users
-- 📧 **Email**: support@brainwise.me
 
 ### Key Features
 
@@ -150,11 +141,7 @@ POS Next is a **complete rewrite** of the ERPNext POS system, built from the gro
   - Multi-language capable
   - Regional formats
 
-## 📋 Prerequisites
 
-- **Frappe Framework** version 15 or higher
-- **ERPNext** version 15 or higher
-- Modern browser (Chrome, Firefox, Safari, Edge)
 
 ## 🚀 Installation
 
