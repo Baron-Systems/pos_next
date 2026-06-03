@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="32" height="32" fill="#2563EB" rx="6"/>
+  
+  <!-- Shopping Cart Icon -->
+  <g transform="translate(6, 8)" fill="white">
+    <!-- Cart body -->
+    <path d="M18 4h-3l-2 7H8L6 4H0" 
+          fill="none" 
+          stroke="white" 
+          stroke-width="2" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"/>
+    
+    <!-- Cart basket -->
+    <path d="M5 11 L6 15 L14 15 L15 11 Z" 
+          fill="white"/>
+    
+    <!-- Wheels -->
+    <circle cx="7" cy="17" r="1.5" fill="white"/>
+    <circle cx="13" cy="17" r="1.5" fill="white"/>
+  </g>
+</svg>
