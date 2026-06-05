@@ -234,7 +234,7 @@ def create_customer_payment(customer, company, amount, mode_of_payment="Cash", p
 
     # Validate outstanding amounts are still current before inserting
     # to prevent "allocated amount > outstanding amount" errors
-    if outstanding_invoices and payment_type == "Receive":
+    if payment_type == "Receive":
         refs_to_remove = []
         for ref in pe.get("references", []):
             if ref.reference_doctype == "Sales Invoice":

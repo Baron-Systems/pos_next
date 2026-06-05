@@ -45,6 +45,12 @@ def create_customer_with_contact_v16(
     if mobile_no:
         mobile_no = _normalize_phone_number_v16(mobile_no)
 
+    # Validate territory exists, fallback to empty if not found
+    if territory and not frappe.db.exists("Territory", territory):
+        territory = None
+    if customer_group and not frappe.db.exists("Customer Group", customer_group):
+        customer_group = "Individual"
+
     try:
         # 1. Create Customer
         customer = frappe.get_doc(
@@ -53,7 +59,7 @@ def create_customer_with_contact_v16(
                 "customer_name": customer_name,
                 "customer_type": "Individual",
                 "customer_group": customer_group or "Individual",
-                "territory": territory or "All Territories",
+                "territory": territory,
                 "mobile_no": mobile_no or "",
                 "email_id": email_id or "",
             }
@@ -125,9 +131,11 @@ def update_customer_with_contact_v16(
         if email_id is not None:
             customer.email_id = email_id
         if customer_group is not None:
-            customer.customer_group = customer_group
+            if frappe.db.exists("Customer Group", customer_group):
+                customer.customer_group = customer_group
         if territory is not None:
-            customer.territory = territory
+            if frappe.db.exists("Territory", territory):
+                customer.territory = territory
 
         customer.save()
         
