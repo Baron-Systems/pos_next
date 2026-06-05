@@ -129,7 +129,6 @@ def get_recent_payments(customer, company=None, limit=10):
     if not customer:
         frappe.throw(_("Customer is required"))
 
-    # Try searching by party (customer name/ID as stored in Payment Entry)
     filters = {"party": customer, "party_type": "Customer", "docstatus": 1, "payment_type": "Receive"}
     if company:
         filters["company"] = company
@@ -137,15 +136,6 @@ def get_recent_payments(customer, company=None, limit=10):
     payments = frappe.get_all("Payment Entry", filters=filters,
         fields=["name", "posting_date", "paid_amount", "mode_of_payment", "reference_no", "remarks"],
         order_by="posting_date desc", limit=limit)
-
-    # If no payments found, try searching by customer_name field as fallback
-    if not payments:
-        filters_alt = {"customer_name": customer, "docstatus": 1, "payment_type": "Receive"}
-        if company:
-            filters_alt["company"] = company
-        payments = frappe.get_all("Payment Entry", filters=filters_alt,
-            fields=["name", "posting_date", "paid_amount", "mode_of_payment", "reference_no", "remarks"],
-            order_by="posting_date desc", limit=limit)
 
     return payments
 
