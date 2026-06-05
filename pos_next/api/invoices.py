@@ -1709,7 +1709,7 @@ def search_invoices_for_return(
     total_count_query = frappe.get_list(
         doctype,
         filters=filters,
-        fields=["count(name) as total_count"],
+        fields=[{"COUNT": "name", "as": "total_count"}],
         as_list=False,
     )
     total_count = total_count_query[0].total_count if total_count_query else 0

@@ -232,6 +232,26 @@ def create_customer_payment(customer, company, amount, mode_of_payment="Cash", p
         pe.remarks = _("Payment to Customer from POS - {0}").format(mode_of_payment)
         allocated = []
 
+    # Validate outstanding amounts are still current before inserting
+    # to prevent "allocated amount > outstanding amount" errors
+    if outstanding_invoices and payment_type == "Receive":
+        refs_to_remove = []
+        for ref in pe.get("references", []):
+            if ref.reference_doctype == "Sales Invoice":
+                current_outstanding = frappe.db.get_value(
+                    "Sales Invoice", ref.reference_name, "outstanding_amount"
+                )
+                if flt(ref.allocated_amount) > flt(current_outstanding) + 0.01:
+                    # Adjust to current outstanding amount
+                    ref.allocated_amount = flt(current_outstanding)
+                    ref.outstanding_amount = flt(current_outstanding)
+                # Mark for removal if fully paid already
+                if flt(ref.allocated_amount) <= 0.01:
+                    refs_to_remove.append(ref)
+        # Remove references that are no longer needed
+        for ref in refs_to_remove:
+            pe.references.remove(ref)
+
     pe.flags.ignore_permissions = True
     pe.insert()
     pe.submit()

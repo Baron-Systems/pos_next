@@ -42,7 +42,7 @@ def get_stock_availability(item_code, warehouse):
 
 	rows = frappe.get_all(
 		"Bin",
-		fields=["sum(actual_qty) as actual_qty"],
+		fields=[{"SUM": "actual_qty", "as": "actual_qty"}],
 		filters={"item_code": item_code, "warehouse": ["in", warehouses]},
 	)
 
@@ -406,7 +406,7 @@ def search_by_barcode(barcode, pos_profile):
 				barcode_uom = None
 
 		if not item_code:
-			frappe.throw(_("Item with barcode {0} not found").format(barcode))
+			return {"not_found": True, "message": _("Item with barcode {0} not found").format(barcode)}
 
 		# Get POS Profile details
 		pos_profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
@@ -454,7 +454,7 @@ def search_by_barcode(barcode, pos_profile):
 		return item_details
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "Search by Barcode Error")
-		frappe.throw(_("Error searching by barcode: {0}").format(str(e)))
+		return {"error": True, "message": str(e)}
 
 
 @frappe.whitelist()

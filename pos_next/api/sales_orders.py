@@ -186,7 +186,7 @@ def get_sales_order_summary(pos_profile=None):
 		status_counts = frappe.get_all(
 			"Sales Order",
 			filters=filters,
-			fields=["status", "count(*) as count", "sum(grand_total) as total"],
+			fields=["status", {"COUNT": "*", "as": "count"}, {"SUM": "grand_total", "as": "total"}],
 			group_by="status"
 		)
 		
