@@ -126,7 +126,15 @@ export function useItems(posProfile, cartItems = ref([])) {
 				barcode,
 				pos_profile: posProfile,
 			})
-			return result?.message || result
+			const item = result?.message || result
+
+			// Validate that item exists and has required fields
+			if (!item || !item.item_code) {
+				console.debug("No item found for barcode:", barcode)
+				return null
+			}
+
+			return item
 		} catch (error) {
 			console.error("Error searching by barcode:", error)
 			return null

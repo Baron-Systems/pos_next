@@ -1327,6 +1327,13 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 			})
 
 			const item = result?.message || result
+
+			// Validate that item exists and has required fields
+			if (!item || !item.item_code) {
+				log.debug("No item found for barcode", { barcode })
+				return null
+			}
+
 			return item
 		} catch (error) {
 			log.error("Store searchByBarcode error", error)

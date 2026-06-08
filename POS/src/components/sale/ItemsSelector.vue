@@ -1212,7 +1212,11 @@ function clearLongPress() {
  * @returns {boolean} - True if item was emitted, false if blocked
  */
 function selectItem(item, autoAdd = false) {
-	if (!item) return false
+	// Strict validation: item must exist and have item_code
+	if (!item?.item_code) {
+		console.warn("selectItem called with invalid item:", item)
+		return false
+	}
 
 	// Skip stock validation for: variants (template), serial items, batch items (they have own validation)
 	const skipValidation = item.has_variants || item.has_serial_no || item.has_batch_no
@@ -1269,7 +1273,8 @@ async function handleBarcodeSearchWithValue(value, forceAutoAdd = false, options
 
 	try {
 		const item = await itemStore.searchByBarcode(barcode)
-		if (item) {
+		// Strict validation: item must have item_code to be considered valid
+		if (item?.item_code) {
 			if (selectItem(item, shouldAutoAdd)) {
 				if (clearBarcode) barcodeInputValue.value = ""
 				if (clearManual) itemStore.clearSearch()
@@ -1277,6 +1282,7 @@ async function handleBarcodeSearchWithValue(value, forceAutoAdd = false, options
 			}
 			return
 		}
+		// Item not found (null or no item_code) - will fall through to filteredItems check
 	} catch (error) {
 		console.error("Barcode API error:", error)
 	}
