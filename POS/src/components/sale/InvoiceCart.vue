@@ -1933,7 +1933,7 @@ function getSmartStep(quantity) {
 function incrementQuantity(item) {
 	const step = getSmartStep(item.quantity);
 	const newQty = Math.round((item.quantity + step) * 10000) / 10000;
-	emit("update-quantity", item.item_code, newQty, item.uom);
+	emit("update-quantity", item.item_code, newQty, item.uom, false);
 }
 
 /**
@@ -1950,7 +1950,7 @@ function decrementQuantity(item) {
 		// If quantity would be 0 or negative, remove the item
 		emit("remove-item", item.item_code, item.uom);
 	} else {
-		emit("update-quantity", item.item_code, newQty, item.uom);
+		emit("update-quantity", item.item_code, newQty, item.uom, false);
 	}
 }
 
@@ -1972,7 +1972,8 @@ function updateQuantity(item, value) {
 	if (qty <= 0) return emit("remove-item", item.item_code, item.uom);
 
 	// For positive numbers, update quantity immediately (no rounding here while typing)
-	emit("update-quantity", item.item_code, qty, item.uom);
+	// moveToTop = true to move item to top when manually editing
+	emit("update-quantity", item.item_code, qty, item.uom, true);
 }
 
 /**
@@ -1992,7 +1993,7 @@ function handleQuantityBlur(item) {
 		// Round to 4 decimal places for consistency
 		const roundedQty = Math.round(item.quantity * 10000) / 10000;
 		if (roundedQty !== item.quantity) {
-			emit("update-quantity", item.item_code, roundedQty, item.uom);
+			emit("update-quantity", item.item_code, roundedQty, item.uom, true);
 		}
 	}
 }

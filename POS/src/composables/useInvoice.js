@@ -301,8 +301,9 @@ export function useInvoice() {
 	 * @param {string|null} uom - Optional UOM to match when same item exists with different UOMs.
 	 *                            If provided, only updates the item with matching item_code AND uom.
 	 *                            If null, updates the first item matching item_code.
+	 * @param {boolean} moveToTop - Whether to move the updated item to first position (default: true)
 	 */
-	function updateItemQuantity(itemCode, quantity, uom = null) {
+	function updateItemQuantity(itemCode, quantity, uom = null, moveToTop = true) {
 		let itemIndex
 		if (uom) {
 			itemIndex = invoiceItems.value.findIndex(
@@ -345,9 +346,11 @@ export function useInvoice() {
 			item.quantity = newQuantity
 			recalculateItem(item)
 
-			// Move updated item to first position
-			invoiceItems.value.splice(itemIndex, 1)
-			invoiceItems.value.unshift(item)
+			// Move updated item to first position only if moveToTop is true
+			if (moveToTop) {
+				invoiceItems.value.splice(itemIndex, 1)
+				invoiceItems.value.unshift(item)
+			}
 
 			// Update cache incrementally (new values - old values)
 			// Use rate for subtotal (respects manually edited prices)
