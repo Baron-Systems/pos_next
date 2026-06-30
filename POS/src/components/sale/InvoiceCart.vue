@@ -790,6 +790,13 @@
 											])
 										}}
 									</div>
+									<!-- Return Badge -->
+									<span
+										v-if="item.quantity < 0"
+										class="inline-flex items-center px-1.5 py-0.5 bg-red-600 text-white rounded-full text-[9px] font-bold flex-shrink-0"
+									>
+										{{ __("Return") }}
+									</span>
 								</div>
 								<button
 									type="button"
@@ -881,7 +888,8 @@
 											@keydown.enter="$event.target.blur()"
 											type="text"
 											inputmode="decimal"
-											class="w-14 sm:w-16 h-6 sm:h-7 text-center bg-white border-0 text-xs sm:text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+											class="w-14 sm:w-16 h-6 sm:h-7 text-center bg-white border-0 text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+											:class="item.quantity < 0 ? 'text-red-600' : 'text-gray-900'"
 											:aria-label="__('Quantity')"
 										/>
 										<button
@@ -1001,7 +1009,8 @@
 								<!-- Item Total -->
 								<div class="text-end flex-shrink-0">
 									<div
-										class="text-xs sm:text-sm font-bold text-blue-600 leading-none"
+										class="text-xs sm:text-sm font-bold leading-none"
+										:class="(item.amount || item.rate * item.quantity) < 0 ? 'text-red-600' : 'text-blue-600'"
 									>
 										{{
 											formatCurrency(
@@ -1167,25 +1176,45 @@
 			<!-- Action Buttons -->
 			<div class="flex flex-col gap-1.5">
 				<div class="flex gap-1.5 min-h-[40px]">
-					<!-- Quick Pay (Cash) - no payment dialog -->
-					<button
-						type="button"
-						@click="$emit('quick-cash-pay')"
-						:disabled="items.length === 0"
-						:class="[
-							'flex-1 min-w-[5rem] py-2.5 px-2 rounded-lg font-bold text-xs transition-all inline-flex items-center justify-center gap-1.5 touch-manipulation overflow-visible',
-							items.length === 0
-								? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-								: 'bg-green-600 hover:bg-green-700 active:bg-green-800 text-white shadow active:scale-[0.98]',
-						]"
-						:title="__('Pay with cash and complete order')"
-						:aria-label="__('Pay (cash)')"
-					>
-						<svg class="w-4 h-4 flex-shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
-						</svg>
-						<span dir="ltr" class="text-white whitespace-nowrap">{{ __("Pay Cash") }}</span>
-					</button>
+					<!-- Quick Pay - no payment dialog -->
+					<div class="flex-1 flex gap-1 min-w-[5rem]">
+						<button
+							type="button"
+							@click="$emit('quick-cash-pay')"
+							:disabled="items.length === 0"
+							:class="[
+								'flex-1 py-2.5 px-2 rounded-lg font-bold text-xs transition-all inline-flex items-center justify-center gap-1.5 touch-manipulation overflow-visible',
+								items.length === 0
+									? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+									: 'bg-green-600 hover:bg-green-700 active:bg-green-800 text-white shadow active:scale-[0.98]',
+							]"
+							:title="__('Pay with selected method and complete order')"
+							:aria-label="quickPayButtonText"
+						>
+							<svg class="w-4 h-4 flex-shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+							</svg>
+							<span dir="ltr" class="text-white whitespace-nowrap">{{ quickPayButtonText }}</span>
+						</button>
+						<button
+							v-if="hasMultiplePaymentMethods"
+							type="button"
+							@click.stop="$emit('switch-payment-method')"
+							:disabled="items.length === 0"
+							:class="[
+								'w-8 flex-shrink-0 rounded-lg font-bold text-xs transition-all inline-flex items-center justify-center touch-manipulation overflow-visible',
+								items.length === 0
+									? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+									: 'bg-green-700 hover:bg-green-800 active:bg-green-900 text-white shadow active:scale-[0.98]',
+							]"
+							:title="__('Switch payment method')"
+							:aria-label="__('Switch payment method')"
+						>
+							<svg class="w-4 h-4 flex-shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+							</svg>
+						</button>
+					</div>
 					<!-- Pay Later (All Debt) -->
 					<button
 						type="button"
@@ -1284,6 +1313,7 @@ import { usePOSCartStore } from "@/stores/posCart";
 import { usePOSSettingsStore } from "@/stores/posSettings";
 import { usePOSOffersStore } from "@/stores/posOffers";
 import { useCustomerSearchStore } from "@/stores/customerSearch";
+import { useBootstrapStore } from "@/stores/bootstrap";
 import { formatCurrency as formatCurrencyUtil, getCurrencySymbol } from "@/utils/currency";
 import { useFormatters } from "@/composables/useFormatters";
 import { isOffline } from "@/utils/offline";
@@ -1305,6 +1335,7 @@ const cartStore = usePOSCartStore(); // Pinia store for cart state management
 const settingsStore = usePOSSettingsStore(); // Pinia store for POS settings
 const offersStore = usePOSOffersStore(); // Pinia store for offers/promotions
 const customerSearchStore = useCustomerSearchStore(); // Pinia store for customer search
+const bootstrapStore = useBootstrapStore(); // Bootstrap store for payment methods
 const { toggleFavoriteCustomer, isFavoriteCustomer } = customerSearchStore; // Favorite customer helpers
 const { formatQuantity } = useFormatters(); // Quantity formatting utilities
 
@@ -1362,6 +1393,10 @@ const props = defineProps({
 		type: Number,
 		default: 0,
 	},
+	selectedPaymentMethod: {
+		type: Object,
+		default: null,
+	},
 });
 
 /**
@@ -1380,6 +1415,7 @@ const emit = defineEmits([
 	"pay-later-all-debt", // () - Pay later with all debt
 	"partial-payment", // (amount: number) - Partial payment with specified amount
 	"customer-payment", // () - Customer payment
+	"switch-payment-method", // () - Switch to next payment method
 	"clear-cart", // () - Clear all items from cart
 	"save-draft", // () - Save current cart as draft/hold order
 	"apply-coupon", // () - Open coupon application dialog
@@ -1426,6 +1462,18 @@ const localAdditionalDiscount = ref(0);
 
 // Partial payment state
 const partialPaymentAmount = ref("");
+
+// Payment methods from bootstrap
+const paymentMethods = computed(() => bootstrapStore.getPreloadedPaymentMethods() || []);
+const hasMultiplePaymentMethods = computed(() => paymentMethods.value.length > 1);
+const quickPayButtonText = computed(() => {
+	const method = props.selectedPaymentMethod;
+	if (method && method.mode_of_payment) {
+		// Use exact string key so Frappe translation lookup works (e.g. "Pay Cash", "Pay Credit Card")
+		return __(`Pay ${method.mode_of_payment}`);
+	}
+	return __("Pay Cash");
+});
 
 /**
  * ============================================================================
@@ -1938,40 +1986,31 @@ function incrementQuantity(item) {
 
 /**
  * Decrement item quantity using smart step.
- * Removes item if quantity would become zero or negative.
+ * Allows quantity to become negative (return item).
  *
  * @param {Object} item - Cart item to decrement
  */
 function decrementQuantity(item) {
 	const step = getSmartStep(item.quantity);
 	const newQty = Math.round((item.quantity - step) * 10000) / 10000;
-
-	if (newQty <= 0) {
-		// If quantity would be 0 or negative, remove the item
-		emit("remove-item", item.item_code, item.uom);
-	} else {
-		emit("update-quantity", item.item_code, newQty, item.uom, false);
-	}
+	emit("update-quantity", item.item_code, newQty, item.uom, false);
 }
 
 /**
  * Update quantity from direct input (manual typing).
- * Allows any positive number during typing without rounding.
+ * Allows positive and negative numbers during typing without rounding.
  *
  * @param {Object} item - Cart item to update
  * @param {String} value - New quantity value from input
  */
-  
+
 function updateQuantity(item, value) {
 	const qty = Number.parseFloat(value);
 
 	// If the input isn't a valid number (e.g., user cleared the field), do nothing
 	if (isNaN(qty)) return;
 
-	// If quantity is zero or negative, remove the item from the cart
-	if (qty <= 0) return emit("remove-item", item.item_code, item.uom);
-
-	// For positive numbers, update quantity immediately (no rounding here while typing)
+	// Update quantity immediately (no rounding here while typing)
 	// moveToTop = true to move item to top when manually editing
 	emit("update-quantity", item.item_code, qty, item.uom, true);
 }
@@ -1979,22 +2018,16 @@ function updateQuantity(item, value) {
 /**
  * Handle quantity input blur - validate and round.
  * Called when user leaves the quantity input field.
- * - Removes item if quantity is 0 or invalid
  * - Rounds to 4 decimal places for consistency
+ * - Allows negative quantities (return items)
  *
  * @param {Object} item - Cart item that lost focus
  */
 function handleQuantityBlur(item) {
-	// When user leaves the input field, round and validate
-	if (!item.quantity || item.quantity <= 0) {
-		// If quantity is 0 or invalid, remove the item
-		emit("remove-item", item.item_code, item.uom);
-	} else {
-		// Round to 4 decimal places for consistency
-		const roundedQty = Math.round(item.quantity * 10000) / 10000;
-		if (roundedQty !== item.quantity) {
-			emit("update-quantity", item.item_code, roundedQty, item.uom, true);
-		}
+	// Round to 4 decimal places for consistency
+	const roundedQty = Math.round(item.quantity * 10000) / 10000;
+	if (roundedQty !== item.quantity) {
+		emit("update-quantity", item.item_code, roundedQty, item.uom, true);
 	}
 }
 

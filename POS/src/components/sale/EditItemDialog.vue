@@ -95,10 +95,10 @@
 																<input
 																	v-model.number="localQuantity"
 																	type="number"
-																	min="0.0001"
 																	step="any"
 																	inputmode="decimal"
 																	class="w-full text-center border-0 text-sm font-semibold focus:outline-none focus:ring-0 bg-transparent"
+										:class="localQuantity < 0 ? 'text-red-600' : ''"
 																	@input="handleQuantityInput"
 																	@blur="handleQuantityBlur"
 																	@keydown.enter="$event.target.blur()"
@@ -127,6 +127,28 @@
 																min="0"
 																step="0.01"
 																class="w-full h-7 border border-gray-300 rounded-lg ps-12 pe-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+																	@input="handleRateInput"
+																	@blur="handleRateBlur"
+															/>
+														</div>
+													</div>
+
+													<!-- Target Amount -->
+													<div>
+														<label class="block text-sm font-medium text-gray-700 mb-2 text-start">{{ __('المبلغ المستهدف') }}</label>
+														<div class="relative h-7">
+															<span class="absolute inset-y-0 start-0 ps-3 flex items-center text-gray-500 text-sm font-medium">
+																{{ currencySymbol }}
+															</span>
+															<input
+																v-model.number="localTargetAmount"
+																type="number"
+																min="0"
+																step="0.01"
+																class="w-full h-7 border border-gray-300 rounded-lg ps-12 pe-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+																@input="handleTargetAmountInput"
+																@blur="handleTargetAmountBlur"
+																@keydown.enter="$event.target.blur()"
 															/>
 														</div>
 													</div>
@@ -144,6 +166,19 @@
 													<div>
 														<label class="block text-sm font-medium text-gray-700 mb-2 text-start">{{ __('Warehouse') }}</label>
 														<SelectInput v-model="localWarehouse" :options="warehouseOptions" @change="handleWarehouseChange" />
+													</div>
+
+													<!-- Item Evaluated Price -->
+													<div>
+														<label class="block text-sm font-medium text-gray-700 mb-2 text-start">{{ __('سعر تقييم الصنف') }}</label>
+														<div class="relative h-7">
+															<span class="absolute inset-y-0 start-0 ps-3 flex items-center text-gray-500 text-sm font-medium">
+																{{ currencySymbol }}
+															</span>
+															<div class="w-full h-7 border border-gray-200 rounded-lg ps-12 pe-3 text-sm font-semibold bg-gray-50 flex items-center text-gray-700">
+																{{ formatCurrency(itemCostRate) }}
+															</div>
+														</div>
 													</div>
 												</div>
 											</div>
@@ -264,7 +299,7 @@ import { usePOSSettingsStore } from "@/stores/posSettings"
 import { useSerialNumberStore } from "@/stores/serialNumber"
 import { getItemStock } from "@/utils/stockValidator"
 import { formatCurrency as formatCurrencyUtil, getCurrencySymbol, round2 } from "@/utils/currency"
-import { Button, FeatherIcon } from "frappe-ui"
+import { Button, FeatherIcon, createResource } from "frappe-ui"
 import { computed, ref, watch } from "vue"
 import SelectInput from "@/components/common/SelectInput.vue"
 
@@ -303,6 +338,8 @@ const isCheckingStock = ref(false)
 const localSerials = ref([]) // List of serial numbers for this item
 const removedSerials = ref([]) // Track serials removed during this edit session
 const originalSerials = ref([]) // Original serials when dialog opened
+const localTargetAmount = ref(0)
+const itemCostRate = ref(0)
 
 const show = computed({
 	get: () => props.modelValue,
@@ -354,8 +391,17 @@ watch(
 			localQuantity.value = newItem.quantity || 1
 			localUom.value = newItem.uom || newItem.stock_uom || __("Nos")
 			localRate.value = newItem.rate || 0
+			localTargetAmount.value = round2((newItem.quantity || 1) * (newItem.rate || newItem.price_list_rate || 0))
 			localWarehouse.value =
 				newItem.warehouse || props.warehouses[0]?.name || ""
+
+			// Set cost rate: prefer valuation_rate (last evaluation price) > last_purchase_rate > 0
+			itemCostRate.value = newItem.valuation_rate || newItem.last_purchase_rate || 0
+
+			// If cost rate not available in cart data, fetch from server
+			if (!itemCostRate.value && newItem.item_code) {
+				fetchItemCostRate(newItem.item_code)
+			}
 
 			// Initialize serial numbers
 			if (newItem.has_serial_no && newItem.serial_no) {
@@ -438,29 +484,65 @@ function incrementQuantity() {
 function decrementQuantity() {
 	const step = getSmartStep(localQuantity.value)
 	const newQty = Math.round((localQuantity.value - step) * 10000) / 10000
-
-	if (newQty > 0) {
-		localQuantity.value = newQty
-		calculateTotals()
-	}
+	localQuantity.value = newQty
+	calculateTotals()
 }
 
 function handleQuantityInput() {
 	// Allow any value during typing, just recalculate totals
 	// Don't validate or reset - let user type freely
-	if (localQuantity.value > 0 && !isNaN(localQuantity.value)) {
+	if (!isNaN(localQuantity.value)) {
 		calculateTotals()
+		localTargetAmount.value = round2(localQuantity.value * localRate.value)
 	}
 }
 
 function handleQuantityBlur() {
 	// Validate and fix the quantity when user is done editing (leaves the field)
-	if (!localQuantity.value || localQuantity.value <= 0 || isNaN(localQuantity.value)) {
-		// If invalid, reset to 1
+	if (isNaN(localQuantity.value)) {
 		localQuantity.value = 1
 	} else {
 		// Round to 4 decimal places for consistency
 		localQuantity.value = Math.round(localQuantity.value * 10000) / 10000
+	}
+	calculateTotals()
+	localTargetAmount.value = round2(localQuantity.value * localRate.value)
+}
+
+function handleRateInput() {
+	// Recalculate totals when rate changes during typing
+	if (localRate.value >= 0 && !isNaN(localRate.value)) {
+		calculateTotals()
+		localTargetAmount.value = round2(localQuantity.value * localRate.value)
+	}
+}
+
+function handleRateBlur() {
+	if (!localRate.value || localRate.value < 0 || isNaN(localRate.value)) {
+		localRate.value = 0
+	} else {
+		localRate.value = Math.round(localRate.value * 100) / 100
+	}
+	calculateTotals()
+	localTargetAmount.value = round2(localQuantity.value * localRate.value)
+}
+
+function handleTargetAmountInput() {
+	// When target amount changes, auto-calculate quantity = amount / rate
+	if (localTargetAmount.value >= 0 && !isNaN(localTargetAmount.value) && localRate.value > 0) {
+		localQuantity.value = Math.round((localTargetAmount.value / localRate.value) * 10000) / 10000
+		calculateTotals()
+	}
+}
+
+function handleTargetAmountBlur() {
+	if (!localTargetAmount.value || localTargetAmount.value < 0 || isNaN(localTargetAmount.value)) {
+		localTargetAmount.value = round2(localQuantity.value * localRate.value)
+	} else {
+		localTargetAmount.value = Math.round(localTargetAmount.value * 100) / 100
+		if (localRate.value > 0) {
+			localQuantity.value = Math.round((localTargetAmount.value / localRate.value) * 10000) / 10000
+		}
 	}
 	calculateTotals()
 }
@@ -555,6 +637,28 @@ function removeSerial(serialNo) {
 		// Update quantity to match serial count
 		localQuantity.value = localSerials.value.length
 		calculateTotals()
+	}
+}
+
+const itemCostRateResource = createResource({
+	url: 'pos_next.api.items.get_item_details',
+	auto: false,
+	transform(data) {
+		if (data) {
+			itemCostRate.value = data.valuation_rate || data.last_purchase_rate || 0
+		}
+	}
+})
+
+async function fetchItemCostRate(itemCode) {
+	try {
+		await itemCostRateResource.submit({
+			item_code: itemCode,
+			pos_profile: settingsStore.settings.pos_profile,
+		})
+	} catch (e) {
+		// Silently fail - cost rate is display-only
+		console.warn('Failed to fetch item cost rate:', e)
 	}
 }
 

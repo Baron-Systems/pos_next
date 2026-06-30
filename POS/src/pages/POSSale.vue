@@ -325,6 +325,7 @@
 								:currency="shiftStore.profileCurrency"
 								:applied-offers="cartStore.appliedOffers"
 								:warehouses="profileWarehouses"
+								:selected-payment-method="selectedQuickPaymentMethod"
 								@update-quantity="cartStore.updateItemQuantity"
 								@update-additional-discount="handleAdditionalDiscountUpdate"
 								@remove-item="
@@ -337,6 +338,7 @@
 								@pay-later-all-debt="handlePayLaterAllDebt"
 								@partial-payment="handlePartialPayment"
 								@customer-payment="handleCustomerPayment"
+								@switch-payment-method="handleSwitchPaymentMethod"
 								@clear-cart="handleClearCart"
 								@save-draft="handleSaveDraft"
 								@apply-coupon="uiStore.showCouponDialog = true"
@@ -935,8 +937,31 @@
 				:customer="cartStore.customer"
 				:company="shiftStore.profileCompany"
 				:opening-shift="shiftStore.currentShift?.name"
+				:mode-of-payment="selectedQuickPaymentMethod?.mode_of_payment || 'Cash'"
 				@payment-created="handleCustomerPaymentCreated"
 			/>
+
+			<!-- Supplier Dialog (selection + payment) -->
+			<SupplierPaymentDialog
+				v-model="showSupplierPaymentDialog"
+				:supplier="supplier"
+				:company="shiftStore.profileCompany"
+				:opening-shift="shiftStore.currentShift?.name"
+				:mode-of-payment="selectedQuickPaymentMethod?.mode_of_payment || 'Cash'"
+				@select-supplier="handleSupplierSelected"
+				@create-supplier="handleCreateSupplier"
+				@edit-supplier="handleEditSupplier"
+				@payment-created="handleSupplierPaymentCreated"
+			/>
+
+                        <!-- Create Supplier Dialog -->
+                        <CreateSupplierDialog
+                                v-model="showCreateSupplierDialog"
+                                :supplier="editingSupplier"
+                                :pos-profile="shiftStore.profileName"
+                                :initial-name="uiStore.initialCustomerName"
+                                @supplier-created="handleSupplierCreated"
+                        />
 
 			<!-- Clear Cache Overlay -->
 			<ClearCacheOverlay
@@ -964,6 +989,8 @@ import BatchSerialDialog from "@/components/sale/BatchSerialDialog.vue";
 import CouponDialog from "@/components/sale/CouponDialog.vue";
 import CustomerPaymentDialog from "@/components/sale/CustomerPaymentDialog.vue";
 import CreateCustomerDialog from "@/components/sale/CreateCustomerDialog.vue";
+import CreateSupplierDialog from "@/components/sale/CreateSupplierDialog.vue";
+import SupplierPaymentDialog from "@/components/sale/SupplierPaymentDialog.vue";
 import CustomerDialog from "@/components/sale/CustomerDialog.vue";
 import DraftInvoicesDialog from "@/components/sale/DraftInvoicesDialog.vue";
 import InvoiceCart from "@/components/sale/InvoiceCart.vue";
@@ -1018,6 +1045,10 @@ const posSettingsStore = usePOSSettingsStore();
 const itemStore = useItemSearchStore();
 const stockStore = useStockStore();
 const showCustomerPaymentDialog = ref(false);
+const showSupplierPaymentDialog = ref(false);
+const supplier = ref(null);
+const editingSupplier = ref(null);
+const selectedQuickPaymentMethod = ref(null);
 const customerSearchStore = useCustomerSearchStore();
 // Note: settingsStore is an alias to posSettingsStore (same Pinia store singleton)
 const settingsStore = posSettingsStore;
@@ -1094,6 +1125,7 @@ const selectedInvoiceForView = ref(null);
 
 // Sales Orders dialog
 const showSalesOrdersDialog = ref(false);
+const showCreateSupplierDialog = ref(false);
 
 // Invoice history data (used by InvoiceManagement component)
 const invoiceHistoryData = ref([]);
@@ -1349,6 +1381,14 @@ onMounted(async () => {
 					await offlineStore.preloadDataForOffline(shiftStore.currentProfile);
 				} else {
 					await offlineStore.checkOfflineCacheAvailability();
+				}
+
+				// Initialize default payment method for quick pay button
+				if (!selectedQuickPaymentMethod.value) {
+					const methods = bootstrapStore.getPreloadedPaymentMethods() || [];
+					if (methods.length > 0) {
+						selectedQuickPaymentMethod.value = methods[0];
+					}
 				}
 			}
 		}
@@ -1804,11 +1844,39 @@ function handleEditCustomer(customer) {
 function getDefaultCashPaymentMethod() {
 	const methods = bootstrapStore.getPreloadedPaymentMethods() || [];
 	if (methods.length === 0) return null;
+	// Prefer the user-selected quick payment method if still available
+	if (selectedQuickPaymentMethod.value) {
+		const selected = methods.find(
+			(m) => m.mode_of_payment === selectedQuickPaymentMethod.value.mode_of_payment
+		);
+		if (selected) return selected;
+	}
 	const defaultMethod = methods.find((m) => m.default === 1);
 	if (defaultMethod) return defaultMethod;
 	const cashMethod = methods.find((m) => (m.type || "").toLowerCase() === "cash");
 	if (cashMethod) return cashMethod;
 	return methods[0];
+}
+
+function handleSwitchPaymentMethod() {
+	const methods = bootstrapStore.getPreloadedPaymentMethods() || [];
+	if (methods.length <= 1) return;
+	const current = selectedQuickPaymentMethod.value;
+	let nextIndex = 0;
+	if (current) {
+		const currentIndex = methods.findIndex(
+			(m) => m.mode_of_payment === current.mode_of_payment
+		);
+		if (currentIndex >= 0) {
+			nextIndex = (currentIndex + 1) % methods.length;
+		}
+	}
+	selectedQuickPaymentMethod.value = methods[nextIndex];
+	const translatedMop = __(methods[nextIndex].mode_of_payment);
+	frappe.show_alert({
+		message: __("تم تحويل طريقة الدفع إلى {0}", [translatedMop]),
+		indicator: "green",
+	});
 }
 
 function handleQuickCashPay() {
@@ -2400,6 +2468,34 @@ async function handleCustomerUpdated(updatedCustomer) {
 	showSuccess(__("{0} updated", [updatedCustomer.customer_name]));
 }
 
+function handleSupplierSelected(selectedSupplier) {
+	supplier.value = selectedSupplier;
+	if (selectedSupplier) {
+		showSuccess(__("{0} selected", [selectedSupplier.supplier_name || selectedSupplier.name]));
+	}
+}
+
+function handleCreateSupplier(searchValue) {
+	uiStore.setInitialCustomerName(searchValue || "");
+	editingSupplier.value = null;
+	showCreateSupplierDialog.value = true;
+}
+
+function handleEditSupplier(sup) {
+	editingSupplier.value = sup || null;
+	showCreateSupplierDialog.value = true;
+}
+
+function handleSupplierPayment(sup) {
+	showSupplierPaymentDialog.value = true;
+}
+
+async function handleSupplierCreated(newSupplier) {
+	supplier.value = newSupplier;
+	showCreateSupplierDialog.value = false;
+	showSuccess(__("{0} created and selected", [newSupplier.supplier_name || newSupplier.name]));
+}
+
 async function handleRefresh() {
 	try {
 		log.info("Clearing cache and reloading page...");
@@ -2712,6 +2808,9 @@ function handleManagementMenuClick(menuItem) {
 	} else if (menuItem === "sales-orders") {
 		// Open Sales Orders dialog
 		showSalesOrdersDialog.value = true;
+	} else if (menuItem === "supplier") {
+		// Open unified supplier dialog (selection + payment)
+		showSupplierPaymentDialog.value = true;
 	}
 }
 
@@ -2908,6 +3007,12 @@ function handleCustomerPayment(customer) {
 function handleCustomerPaymentCreated(result) {
 	showSuccess(__("Payment completed and balance updated"));
 }
+
+function handleSupplierPaymentCreated(result) {
+	showSuccess(__("Supplier payment created: {0}", [result?.payment_entry || result?.name]));
+	showSupplierPaymentDialog.value = false;
+}
+
 // Optimized tab switching for mobile with RAF for smooth transitions
 function handleTabSwitch(tab) {
 	// Use requestAnimationFrame to ensure smooth transitions

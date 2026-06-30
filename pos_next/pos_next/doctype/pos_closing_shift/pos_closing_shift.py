@@ -389,9 +389,9 @@ def get_pos_invoices(pos_opening_shift, doctype=None):
 @frappe.whitelist()
 def get_payments_entries(pos_opening_shift):
     # Search by reference_no (legacy) OR posa_pos_opening_shift field
+    # Include both Receive (customer) and Pay (supplier) payment types
     filters = {
         "docstatus": 1,
-        "payment_type": "Receive",
     }
     
     # Build OR condition for reference_no or posa_pos_opening_shift
@@ -416,6 +416,7 @@ def get_payments_entries(pos_opening_shift):
             "reference_no",
             "posting_date",
             "party",
+            "payment_type",
         ],
     )
 
@@ -551,12 +552,16 @@ def make_closing_shift_from_opening(opening_shift):
     # Process payment entries
     pos_payments_table = []
     for py in get_payments_entries(opening_shift.get("name")):
+        # Determine party type based on payment_type
+        party_type = "Customer" if py.payment_type == "Receive" else "Supplier"
         pos_payments_table.append(frappe._dict({
             "payment_entry": py.name,
             "mode_of_payment": py.mode_of_payment,
             "paid_amount": py.paid_amount,
             "posting_date": py.posting_date,
             "customer": py.party,
+            "payment_type": py.payment_type,
+            "party_type": party_type,
         }))
         amount = get_base_value(py, "paid_amount", "base_paid_amount")
         _aggregate_payment(payments, py.mode_of_payment, amount)
@@ -577,6 +582,12 @@ def make_closing_shift_from_opening(opening_shift):
 
     # Build response with display-only fields
     result = closing_shift.as_dict()
+    # Enrich pos_payments with payment_type for display separation
+    for p in result.get("pos_payments", []):
+        entry = next((py for py in get_payments_entries(opening_shift.get("name")) if py.name == p.get("payment_entry")), None)
+        if entry:
+            p["payment_type"] = entry.payment_type
+            p["party_type"] = "Customer" if entry.payment_type == "Receive" else "Supplier"
     result.update({
         "returns_total": summary["returns_total"],
         "returns_count": summary["returns_count"],

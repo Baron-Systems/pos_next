@@ -252,7 +252,7 @@ def get_item_detail(item, doc=None, warehouse=None, price_list=None, company=Non
 	# Fetch all needed Item fields in a single query (performance optimization)
 	item_data = frappe.db.get_value(
 		"Item", item_code,
-		["max_discount", "item_group", "brand", "stock_uom"],
+		["max_discount", "item_group", "brand", "stock_uom", "valuation_rate", "last_purchase_rate"],
 		as_dict=True
 	) or {}
 
@@ -281,6 +281,8 @@ def get_item_detail(item, doc=None, warehouse=None, price_list=None, company=Non
 	res["serial_no_data"] = serial_no_data
 	res["item_group"] = item_data.get("item_group")
 	res["brand"] = item_data.get("brand")
+	res["valuation_rate"] = flt(item_data.get("valuation_rate"))
+	res["last_purchase_rate"] = flt(item_data.get("last_purchase_rate"))
 
 	# Add UOMs data
 	uoms = frappe.get_all(

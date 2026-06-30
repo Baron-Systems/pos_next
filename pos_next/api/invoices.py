@@ -422,6 +422,15 @@ def update_invoice(data):
                         payment.amount = original_amount
                         payment.base_amount = flt(original.get('base_amount', original_amount))
                         payments_restored = True
+                    # Restore mode_of_payment and type if ERPNext changed them
+                    original_mop = original.get('mode_of_payment')
+                    if original_mop and payment.mode_of_payment != original_mop:
+                        payment.mode_of_payment = original_mop
+                        payments_restored = True
+                    original_type = original.get('type')
+                    if original_type and payment.type != original_type:
+                        payment.type = original_type
+                        payments_restored = True
 
         # Recalculate paid_amount for all invoices (including returns with negative payments)
         if doctype == "Sales Invoice" and invoice_doc.get('payments'):
@@ -455,21 +464,33 @@ def update_invoice(data):
             pos_profile_doc.company if pos_profile_doc else None
         )
 
-        if company and invoice_doc.get("payments") and doctype == "Sales Invoice":
-            for payment in invoice_doc.payments:
-                mode_of_payment = payment.get("mode_of_payment")
-                if mode_of_payment and not payment.get("account"):
+        # Ensure payments table matches original data exactly (ERPNext may reset it based on POS Profile)
+        if original_payments and hasattr(invoice_doc, 'payments') and doctype == "Sales Invoice":
+            invoice_doc.set('payments', [])
+            for p in original_payments:
+                row = {
+                    'mode_of_payment': p.get('mode_of_payment'),
+                    'amount': flt(p.get('amount')),
+                    'base_amount': flt(p.get('base_amount', p.get('amount'))),
+                    'type': p.get('type'),
+                }
+                if company and p.get('mode_of_payment'):
                     try:
-                        account_info = get_payment_account(
-                            mode_of_payment, company
-                        )
+                        account_info = get_payment_account(p.get('mode_of_payment'), company)
                         if account_info:
-                            payment["account"] = account_info.get("account")
+                            row['account'] = account_info.get('account')
                     except Exception as e:
                         frappe.log_error(
-                            f"Failed to get payment account for {mode_of_payment}: {e}",
+                            f"Failed to get payment account for {p.get('mode_of_payment')}: {e}",
                             "Payment Account Lookup"
                         )
+                invoice_doc.append('payments', row)
+
+        # Recalculate paid_amount for all invoices (including returns with negative payments)
+        if doctype == "Sales Invoice" and invoice_doc.get('payments'):
+            invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
+            invoice_doc.base_paid_amount = flt(sum(p.base_amount or 0 for p in invoice_doc.payments))
+            invoice_doc.outstanding_amount = flt(invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
 
         # Validate return items if this is a return invoice
         if (data.get("is_return") or invoice_doc.get("is_return")) and invoice_doc.get(
@@ -658,8 +679,22 @@ def update_invoice(data):
                         payment.amount = original_amount
                         payment.base_amount = flt(original.get('base_amount', original_amount))
                         payments_restored_again = True
+                    # Restore mode_of_payment and type if ERPNext changed them during save/validation
+                    original_mop = original.get('mode_of_payment')
+                    if original_mop and payment.mode_of_payment != original_mop:
+                        payment.mode_of_payment = original_mop
+                        payments_restored_again = True
+                    original_type = original.get('type')
+                    if original_type and payment.type != original_type:
+                        payment.type = original_type
+                        payments_restored_again = True
             if payments_restored_again:
-                invoice_doc.save()
+                old_ignore_validate = getattr(invoice_doc.flags, 'ignore_validate', False)
+                invoice_doc.flags.ignore_validate = True
+                try:
+                    invoice_doc.save()
+                finally:
+                    invoice_doc.flags.ignore_validate = old_ignore_validate
 
         # Final recalculation of paid_amount for all invoices (including returns)
         if doctype == "Sales Invoice":
@@ -999,6 +1034,15 @@ def submit_invoice(invoice=None, data=None):
                         payment.amount = original_amount
                         payment.base_amount = flt(original.get('base_amount', original_amount))
                         payments_restored = True
+                    # Restore mode_of_payment and type if ERPNext changed them
+                    original_mop = original.get('mode_of_payment')
+                    if original_mop and payment.mode_of_payment != original_mop:
+                        payment.mode_of_payment = original_mop
+                        payments_restored = True
+                    original_type = original.get('type')
+                    if original_type and payment.type != original_type:
+                        payment.type = original_type
+                        payments_restored = True
             if payments_restored:
                 invoice_doc.save()
 
@@ -1104,8 +1148,39 @@ def submit_invoice(invoice=None, data=None):
         frappe.flags.ignore_account_permission = True
         invoice_doc.save()
 
-        # Submit invoice
-        invoice_doc.submit()
+        # Ensure payments table matches original data exactly AFTER save so ERPNext validate can't reset it
+        if original_invoice_payments and hasattr(invoice_doc, 'payments') and doctype == "Sales Invoice":
+            invoice_doc.set('payments', [])
+            for p in original_invoice_payments:
+                row = {
+                    'mode_of_payment': p.get('mode_of_payment'),
+                    'amount': flt(p.get('amount')),
+                    'base_amount': flt(p.get('base_amount', p.get('amount'))),
+                    'type': p.get('type'),
+                }
+                if invoice_doc.company and p.get('mode_of_payment'):
+                    try:
+                        account_info = get_payment_account(p.get('mode_of_payment'), invoice_doc.company)
+                        if account_info:
+                            row['account'] = account_info.get('account')
+                    except Exception:
+                        pass
+                invoice_doc.append('payments', row)
+            # Prevent validate from resetting payments on this save too
+            old_ignore_validate = getattr(invoice_doc.flags, 'ignore_validate', False)
+            invoice_doc.flags.ignore_validate = True
+            try:
+                invoice_doc.save()
+            finally:
+                invoice_doc.flags.ignore_validate = old_ignore_validate
+
+        # Submit invoice - temporarily ignore validate to prevent ERPNext from resetting payments
+        old_ignore_validate = getattr(invoice_doc.flags, 'ignore_validate', False)
+        invoice_doc.flags.ignore_validate = True
+        try:
+            invoice_doc.submit()
+        finally:
+            invoice_doc.flags.ignore_validate = old_ignore_validate
         invoice_submitted = True
 
         # Update linked sales orders status after successful submission

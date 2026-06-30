@@ -323,7 +323,8 @@ export function useInvoice() {
 			const oldDiscount = item.discount_amount || 0
 			const oldQuantity = item.quantity
 
-			const newQuantity = Number.parseFloat(quantity) || 1
+			const parsedQty = Number.parseFloat(quantity)
+			const newQuantity = isNaN(parsedQty) ? oldQuantity : parsedQty
 
 			// Handle serial number items - adjust serials when quantity changes
 			if (item.has_serial_no && item.serial_no) {
@@ -752,6 +753,8 @@ export function useInvoice() {
 		const rawItems = toRaw(invoiceItems.value)
 		const rawPayments = toRaw(payments.value)
 
+		const hasNegativeQty = rawItems.some((item) => (item.quantity || item.qty || 0) < 0)
+
 		const invoiceData = {
 			doctype: targetDoctype,
 			pos_profile: posProfile.value,
@@ -768,6 +771,7 @@ export function useInvoice() {
 			coupon_code: couponCode.value,
 			is_pos: 1,
 			update_stock: 1,
+			is_return: hasNegativeQty ? 1 : 0,
 		}
 
 		if (targetDoctype === "Sales Order") {
@@ -807,6 +811,8 @@ export function useInvoice() {
 				const rawPayments = toRaw(payments.value)
 				const rawSalesTeam = toRaw(salesTeam.value)
 
+				const hasNegativeQty = rawItems.some((item) => (item.quantity || item.qty || 0) < 0)
+
 				const invoiceData = {
 					doctype: targetDoctype,
 					pos_profile: posProfile.value,
@@ -823,6 +829,7 @@ export function useInvoice() {
 					coupon_code: couponCode.value,
 					is_pos: 1,
 					update_stock: 1, // Critical: Ensures stock is updated
+					is_return: hasNegativeQty ? 1 : 0,
 				}
 
 				if (targetDoctype === "Sales Order" && deliveryDate) {

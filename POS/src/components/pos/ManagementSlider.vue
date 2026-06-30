@@ -106,6 +106,23 @@
 		<!-- Divider -->
 		<div class="w-8 border-t border-gray-200 my-2"></div>
 
+		<!-- Supplier -->
+		<button
+			@click="handleMenuClick('supplier')"
+			:class="[
+				'w-12 h-12 rounded-lg flex items-center justify-center transition-all relative group',
+				activeMenu === 'supplier'
+					? 'bg-orange-100 text-orange-600'
+					: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+			]"
+			:title="__('المورد')"
+		>
+			<FeatherIcon name="truck" class="w-5 h-5" />
+			<div class="absolute start-full ms-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+				{{ __('المورد') }}
+			</div>
+		</button>
+
 		<!-- Settings -->
 		<button
 			@click="handleMenuClick('settings')"

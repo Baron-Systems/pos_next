@@ -292,6 +292,7 @@ const props = defineProps({
 	customer: { type: Object, default: null },
 	company: { type: String, default: "" },
 	openingShift: { type: String, default: "" },
+	modeOfPayment: { type: String, default: "Cash" },
 })
 const emit = defineEmits(["update:modelValue", "payment-created"])
 const { showSuccess, showError } = useToast()
@@ -405,10 +406,10 @@ async function executePayment() {
 	paying.value = true
 	try {
 		const result = await call("pos_next.api.customer_payment.create_customer_payment", {
-			customer: cust, 
-			company: props.company, 
-			amount: Math.abs(paymentAmount.value), 
-			mode_of_payment: "Cash", 
+			customer: cust,
+			company: props.company,
+			amount: Math.abs(paymentAmount.value),
+			mode_of_payment: props.modeOfPayment,
 			payment_type: paymentAmount.value < 0 ? "Pay" : "Receive",
 			pos_opening_shift: props.openingShift || undefined,
 		})

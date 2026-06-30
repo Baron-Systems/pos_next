@@ -215,7 +215,7 @@
             <div v-show="showCustomerPayments" class="border-t border-gray-200">
               <!-- Mobile Card View -->
               <div class="md:hidden divide-y divide-gray-200">
-                <div v-for="(payment, idx) in closingData.pos_payments" :key="idx"
+                <div v-for="(payment, idx) in customerPayments" :key="idx"
                      class="p-3 hover:bg-gray-50 bg-green-50">
                   <div class="flex justify-between items-start mb-2">
                     <div class="flex items-center gap-2">
@@ -261,7 +261,7 @@
                     </tr>
                   </thead>
                   <tbody class="bg-white divide-y divide-gray-200">
-                    <tr v-for="(payment, idx) in closingData.pos_payments" :key="idx"
+                    <tr v-for="(payment, idx) in customerPayments" :key="idx"
                         class="hover:bg-gray-50 bg-green-50/30">
                       <td class="text-start px-6 py-4 whitespace-nowrap">
                         <span class="text-sm font-medium text-gray-900">
@@ -294,6 +294,122 @@
                       <td class="px-6 py-4 whitespace-nowrap text-start">
                         <span class="text-base font-bold text-gray-900">
                           {{ formatCurrency(totalCustomerPayments) }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Supplier Payments from POS (Collapsible) - Show only when supplier payments exist -->
+          <div v-if="hasSupplierPayments" class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+            <button
+              @click="showSupplierPayments = !showSupplierPayments"
+              :aria-label="`${showSupplierPayments ? 'Hide' : 'Show'} supplier payments for ${supplierPaymentsCount} transactions`"
+              :aria-expanded="showSupplierPayments"
+              class="w-full px-3 py-3 md:px-6 md:py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div class="text-start">
+                <h3 class="text-sm md:text-lg font-medium text-gray-900">{{ __('Supplier Payments from POS') }}</h3>
+                <p class="text-xs md:text-sm text-gray-500">{{ __('{0} payments • {1}', [
+                  supplierPaymentsCount,
+                  formatCurrency(totalSupplierPayments)
+                ]) }}</p>
+              </div>
+              <svg
+                :class="['h-4 w-4 md:h-5 md:w-5 text-gray-400 transition-transform', showSupplierPayments ? 'transform rotate-180' : '']"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <div v-show="showSupplierPayments" class="border-t border-gray-200">
+              <!-- Mobile Card View -->
+              <div class="md:hidden divide-y divide-gray-200">
+                <div v-for="(payment, idx) in supplierPayments" :key="idx"
+                     class="p-3 hover:bg-gray-50 bg-amber-50">
+                  <div class="flex justify-between items-start mb-2">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-medium text-gray-900">
+                        {{ payment.payment_entry || __('N/A') }}
+                      </span>
+                      <span class="px-1.5 py-0.5 text-xs font-medium bg-amber-200 text-amber-800 rounded">
+                        {{ __('Payment') }}
+                      </span>
+                    </div>
+                    <span class="text-sm font-semibold text-amber-700">
+                      {{ formatCurrency(payment.paid_amount) }}
+                    </span>
+                  </div>
+                  <div class="flex justify-between items-center text-xs text-gray-600">
+                    <span>{{ payment.customer }}</span>
+                    <span class="text-gray-500">{{ formatTime(payment.posting_date) }}</span>
+                  </div>
+                  <div class="mt-1 text-xs text-gray-500">
+                    {{ payment.mode_of_payment }}
+                  </div>
+                </div>
+                <div class="bg-gray-50 p-3">
+                  <div class="flex justify-between items-center">
+                    <span class="text-xs font-semibold text-gray-700">{{ __('Total Payments:') }}</span>
+                    <span class="text-sm font-bold text-gray-900">
+                      {{ formatCurrency(totalSupplierPayments) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Desktop Table View -->
+              <div class="hidden md:block overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Payment Entry') }}</th>
+                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Supplier') }}</th>
+                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Mode of Payment') }}</th>
+                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Date') }}</th>
+                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Amount') }}</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <tr v-for="(payment, idx) in supplierPayments" :key="idx"
+                        class="hover:bg-gray-50 bg-amber-50/30">
+                      <td class="text-start px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm font-medium text-gray-900">
+                          {{ payment.payment_entry || __('N/A') }}
+                        </span>
+                      </td>
+                      <td class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {{ payment.customer }}
+                      </td>
+                      <td class="text-start px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-800 rounded">
+                          {{ payment.mode_of_payment }}
+                        </span>
+                      </td>
+                      <td class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ formatTime(payment.posting_date) }}
+                      </td>
+                      <td class="text-start px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm font-semibold text-amber-700">
+                          {{ formatCurrency(payment.paid_amount) }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot class="bg-gray-50">
+                    <tr>
+                      <td colspan="4" class="px-6 py-4 text-start text-sm font-semibold text-gray-700">
+                        {{ __('Total Payments:') }}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-start">
+                        <span class="text-base font-bold text-gray-900">
+                          {{ formatCurrency(totalSupplierPayments) }}
                         </span>
                       </td>
                     </tr>
@@ -651,6 +767,7 @@ const closingDataResource = getClosingShiftData
 const submitResource = submitClosingShift
 const showInvoiceDetails = ref(false)
 const showCustomerPayments = ref(false) // Track if customer payments section is expanded
+const showSupplierPayments = ref(false) // Track if supplier payments section is expanded
 const showSuccessReport = ref(false) // Track if shift is closed and showing report
 const errorMessage = ref('') // User-friendly error message
 
@@ -812,21 +929,34 @@ const hasReturns = computed(() => {
 	return (closingData.value.returns_count || 0) > 0
 })
 
-// Customer Payments from POS computed properties
-const hasCustomerPayments = computed(() => {
-	if (!closingData.value) return false
+// Split payments into customer (Receive) and supplier (Pay)
+const customerPayments = computed(() => {
+	if (!closingData.value) return []
 	const payments = closingData.value.pos_payments || []
-	return payments.length > 0
+	return payments.filter(p => (p.payment_type || 'Receive') === 'Receive')
 })
 
-const customerPaymentsCount = computed(() => {
-	if (!closingData.value) return 0
-	return (closingData.value.pos_payments || []).length
+const supplierPayments = computed(() => {
+	if (!closingData.value) return []
+	const payments = closingData.value.pos_payments || []
+	return payments.filter(p => p.payment_type === 'Pay')
 })
+
+const hasCustomerPayments = computed(() => customerPayments.value.length > 0)
+const hasSupplierPayments = computed(() => supplierPayments.value.length > 0)
+
+const customerPaymentsCount = computed(() => customerPayments.value.length)
+const supplierPaymentsCount = computed(() => supplierPayments.value.length)
 
 const totalCustomerPayments = computed(() => {
-	if (!closingData.value || !closingData.value.pos_payments) return 0
-	return closingData.value.pos_payments.reduce(
+	return customerPayments.value.reduce(
+		(sum, payment) => sum + Number.parseFloat(payment.paid_amount || 0),
+		0,
+	)
+})
+
+const totalSupplierPayments = computed(() => {
+	return supplierPayments.value.reduce(
 		(sum, payment) => sum + Number.parseFloat(payment.paid_amount || 0),
 		0,
 	)
