@@ -49,6 +49,105 @@ function cleanErrorMessage(rawMessage) {
 	return text.replace(/\s+/g, " ").trim()
 }
 
+function translateKnownErrors(cleanMessage) {
+	if (!cleanMessage) return cleanMessage
+
+	const lower = cleanMessage.toLowerCase()
+
+	if (
+		lower.includes("selling rate for item") &&
+		lower.includes("is lower than its") &&
+		lower.includes("should be atleast")
+	) {
+		const rowMatch = cleanMessage.match(/Row\s*#(\d+)/i)
+		const itemMatch = cleanMessage.match(/item\s+(.+?)\s+is\s+lower/i)
+		const rateMatch = cleanMessage.match(/should\s+be\s+atleast\s+([\d.,]+)/i)
+
+		const row = rowMatch ? rowMatch[1] : ""
+		const item = itemMatch ? itemMatch[1].trim() : ""
+		const minRate = rateMatch ? rateMatch[1] : ""
+
+		let arabic = "سعر البيع أقل من سعر الشراء"
+		if (row) arabic += ` — السطر ${row}`
+		arabic += `\n\nسعر بيع الصنف "${item}" أقل من آخر سعر شراء له.`
+		if (minRate) {
+			arabic += `\nالحد الأدنى لسعر البيع هو ${minRate}.`
+		}
+		return arabic
+	}
+
+	if (
+		lower.includes("selling rate for item") &&
+		lower.includes("is lower than its valuation rate")
+	) {
+		const rowMatch = cleanMessage.match(/Row\s*#(\d+)/i)
+		const itemMatch = cleanMessage.match(/item\s+(.+?)\s+is\s+lower/i)
+		const rateMatch = cleanMessage.match(/should\s+be\s+atleast\s+([\d.,]+)/i)
+
+		const row = rowMatch ? rowMatch[1] : ""
+		const item = itemMatch ? itemMatch[1].trim() : ""
+		const minRate = rateMatch ? rateMatch[1] : ""
+
+		let arabic = "سعر البيع أقل من سعر التكلفة"
+		if (row) arabic += ` — السطر ${row}`
+		arabic += `\n\nسعر بيع الصنف "${item}" أقل من سعر التكلفة (التقييم).`
+		if (minRate) {
+			arabic += `\nالحد الأدنى لسعر البيع هو ${minRate}.`
+		}
+		return arabic
+	}
+
+	if (lower.includes("partial payment in pos transactions are not allowed")) {
+		return "الدفع الجزائي غير مسموح به في نقطة البيع."
+	}
+
+	if (lower.includes("not enough stock") || lower.includes("insufficient stock")) {
+		return "المخزون غير كافٍ. الرجاء تقليل الكمية أو التحقق من توفر المخزون."
+	}
+
+	if (lower.includes("no open pos opening entry found")) {
+		return "لا توجد وردية نقطة بيع مفتوحة. الرجاء فتح وردية أولاً."
+	}
+
+	if (lower.includes("pos profile") && lower.includes("multiple open")) {
+		return "يوجد أكثر من وردية مفتوحة. الرجاء إغلاق الورديات السابقة."
+	}
+
+	return cleanMessage
+}
+
+function findServerErrorMessage(messages) {
+	if (!messages || !Array.isArray(messages) || messages.length === 0) {
+		return null
+	}
+
+	const parsed = messages
+		.map((m) => {
+			if (typeof m === "string" && m.trim().startsWith("{")) {
+				try {
+					return JSON.parse(m)
+				} catch {
+					return { message: m }
+				}
+			}
+			if (typeof m === "string") return { message: m }
+			if (m && typeof m === "object") return m
+			return null
+		})
+		.filter(Boolean)
+
+	const errorMessage = parsed.find(
+		(m) =>
+			m.indicator === "red" ||
+			m.raise_exception === 1 ||
+			m.raise_exception === true ||
+			(String(m.title || "").toLowerCase().includes("error") &&
+				String(m.title || "").toLowerCase() !== "message"),
+	)
+
+	return errorMessage || parsed[parsed.length - 1] || null
+}
+
 /**
  * Parse error and return structured error information
  * @param {Error} error - The error object from API call
@@ -93,16 +192,22 @@ export function parseError(error) {
 		Array.isArray(error.messages) &&
 		error.messages.length > 0
 	) {
-		context.message = cleanErrorMessage(error.messages[0])
+		const serverMessage = findServerErrorMessage(error.messages)
+		if (serverMessage) {
+			context.message = cleanErrorMessage(
+				serverMessage.message || serverMessage.title,
+			)
+			if (serverMessage.title) context.title = serverMessage.title
+		}
 	} else if (error._server_messages) {
 		try {
 			const serverMessages = JSON.parse(error._server_messages)
-			if (serverMessages && serverMessages.length > 0) {
-				const firstMessage = JSON.parse(serverMessages[0])
+			const serverMessage = findServerErrorMessage(serverMessages)
+			if (serverMessage) {
 				context.message = cleanErrorMessage(
-					firstMessage.message || firstMessage.title,
+					serverMessage.message || serverMessage.title,
 				)
-				if (firstMessage.title) context.title = firstMessage.title
+				if (serverMessage.title) context.title = serverMessage.title
 			}
 		} catch (parseError) {
 			console.error("Error parsing _server_messages:", parseError)
@@ -227,6 +332,21 @@ export function parseError(error) {
 		context.type = "validation"
 		context.title = __("Duplicate Entry")
 		context.retryable = false
+	}
+
+	// Translate known ERPNext English messages to Arabic
+	if (context.message) {
+		const translated = translateKnownErrors(context.message)
+		if (translated !== context.message) {
+			context.message = translated
+			if (
+				context.title === "Invalid Selling Price" ||
+				(translated.includes("سعر البيع") &&
+					translated.includes("أقل من"))
+			) {
+				context.title = "سعر البيع منخفض جداً"
+			}
+		}
 	}
 
 	return context

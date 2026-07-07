@@ -10,7 +10,6 @@ export const usePOSUIStore = defineStore("posUI", () => {
 	const isLoading = ref(true)
 
 	// Dialog states using the dialog composable
-	const { isOpen: showPaymentDialog } = useDialog("payment")
 	const { isOpen: showCustomerDialog } = useDialog("customer")
 	const { isOpen: showSuccessDialog } = useDialog("success")
 	const { isOpen: showOpenShiftDialog } = useDialog("openShift")
@@ -146,7 +145,6 @@ export const usePOSUIStore = defineStore("posUI", () => {
 
 	function resetAllDialogs() {
 		// Close all dialogs on logout to prevent stale state
-		showPaymentDialog.value = false
 		showCustomerDialog.value = false
 		showSuccessDialog.value = false
 		showOpenShiftDialog.value = false
@@ -169,7 +167,6 @@ export const usePOSUIStore = defineStore("posUI", () => {
 	return {
 		// State
 		isLoading,
-		showPaymentDialog,
 		showCustomerDialog,
 		showSuccessDialog,
 		showOpenShiftDialog,

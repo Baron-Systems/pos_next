@@ -65,6 +65,9 @@
   "allow_delete_offline_invoice",
   "allow_change_posting_date",
   "post_change_gl_entries",
+  "section_break_currency",
+  "enable_currency_exchange",
+  "currency_setup",
   "section_break_misc",
   "input_qty",
   "allow_negative_stock"
@@ -483,6 +486,27 @@
    "fieldtype": "Check",
    "label": "Create Ledger Entries for Change Amount",
    "options": "1"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_currency",
+   "fieldtype": "Section Break",
+   "label": "Currency Exchange"
+  },
+  {
+   "default": "0",
+   "description": "Enable currency exchange between cash accounts in POS",
+   "fieldname": "enable_currency_exchange",
+   "fieldtype": "Check",
+   "label": "Enable Currency Exchange in POS"
+  },
+  {
+   "depends_on": "enable_currency_exchange",
+   "description": "Configure currencies and their linked cash accounts for exchange operations. Requires at least 2 currencies.",
+   "fieldname": "currency_setup",
+   "fieldtype": "Table",
+   "label": "Currency Setup",
+   "options": "POS Currency Setup"
   },
   {
    "collapsible": 1,

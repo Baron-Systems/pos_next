@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import json
 import frappe
 from frappe import _
-from frappe.utils import nowdate, nowtime, get_datetime
+from frappe.utils import nowdate, nowtime, get_datetime, flt
 from pos_next.api.utilities import get_wallet_payment_modes
 
 
@@ -64,6 +64,51 @@ def get_opening_dialog_data():
 	else:
 		data["payments_method"] = []
 
+	# Include currency setup for profiles with enabled currency exchange
+	profile_currency_setups = {}
+	if pos_profiles_list:
+		for profile_name in pos_profiles_list:
+			profile = next((p for p in pos_profiles_data if p.name == profile_name), None)
+			company = profile.company if profile else None
+
+			pos_settings = frappe.db.get_value(
+				"POS Settings",
+				{"pos_profile": profile_name},
+				["name", "enable_currency_exchange"],
+				as_dict=True,
+			)
+			if pos_settings and pos_settings.enable_currency_exchange:
+				currency_setup = frappe.get_all(
+					"POS Currency Setup",
+					filters={"parent": pos_settings.name},
+					fields=["currency", "cash_account", "buy_rate", "sell_rate"],
+					order_by="idx",
+				)
+
+				# Exclude the currency whose cash_account matches the Cash mode's default account
+				# to avoid duplicate opening balance inputs (Cash payment already covers it)
+				cash_mode = (
+					frappe.db.get_value("POS Profile", profile_name, "posa_cash_mode_of_payment")
+					or "Cash"
+				)
+				cash_account = None
+				if company and cash_mode:
+					cash_account = frappe.db.get_value(
+						"Mode of Payment Account",
+						{"parent": cash_mode, "parenttype": "Mode of Payment", "company": company},
+						"default_account",
+					)
+
+				if cash_account:
+					currency_setup = [
+						cs for cs in currency_setup
+						if cs.cash_account != cash_account
+					]
+
+				profile_currency_setups[profile_name] = currency_setup
+
+	data["profile_currency_setups"] = profile_currency_setups
+
 	return data
 
 
@@ -99,9 +144,11 @@ def check_opening_shift(user=None):
 
 
 @frappe.whitelist()
-def create_opening_shift(pos_profile, company, balance_details):
+def create_opening_shift(pos_profile, company, balance_details, currency_opening_balances=None):
 	"""Create a new POS Opening Shift"""
 	balance_details = json.loads(balance_details) if isinstance(balance_details, str) else balance_details
+	if currency_opening_balances and isinstance(currency_opening_balances, str):
+		currency_opening_balances = json.loads(currency_opening_balances)
 
 	# Check if user already has an open shift
 	existing_shift = check_opening_shift(frappe.session.user)
@@ -130,6 +177,18 @@ def create_opening_shift(pos_profile, company, balance_details):
 		})
 
 	new_pos_opening.set("balance_details", formatted_balance_details)
+
+	# Add currency opening balances if provided
+	if currency_opening_balances:
+		formatted_currency_balances = []
+		for detail in currency_opening_balances:
+			formatted_currency_balances.append({
+				"currency": detail.get("currency"),
+				"account": detail.get("account"),
+				"opening_amount": flt(detail.get("opening_amount", 0)),
+			})
+		new_pos_opening.set("currency_opening_balances", formatted_currency_balances)
+
 	new_pos_opening.insert(ignore_permissions=True)
 	new_pos_opening.submit()
 

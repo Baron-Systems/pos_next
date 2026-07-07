@@ -14,6 +14,7 @@ Performance improvement: ~300-500ms faster initial load
 
 import frappe
 from frappe import _
+from frappe.utils import flt
 
 
 @frappe.whitelist()
@@ -111,12 +112,25 @@ def get_pos_profile_data(pos_profile):
 
 	profile_doc = frappe.get_doc("POS Profile", pos_profile)
 
+	allowed_price_lists = []
+	for row in profile_doc.get("posa_allowed_price_lists", []):
+		allowed_price_lists.append(
+			{
+				"price_list": row.price_list,
+				"is_default": row.is_default,
+			}
+		)
+
+	default_price_list = profile_doc.selling_price_list
+
 	return {
 		"name": profile_doc.name,
 		"company": profile_doc.company,
 		"currency": profile_doc.currency,
 		"warehouse": profile_doc.warehouse,
 		"selling_price_list": profile_doc.selling_price_list,
+		"allowed_price_lists": allowed_price_lists,
+		"default_price_list": default_price_list,
 		"customer": profile_doc.customer,
 		"write_off_account": profile_doc.write_off_account,
 		"write_off_cost_center": profile_doc.write_off_cost_center,
@@ -124,6 +138,7 @@ def get_pos_profile_data(pos_profile):
 		"auto_print": profile_doc.get("print_receipt_on_order_complete", 0),
 		"country": profile_doc.get("country"),
 		"allow_customer_payment": profile_doc.get("allow_customer_payment", 0),
+		"allow_supplier_payment": profile_doc.get("allow_supplier_payment", 0),
 	}
 
 
@@ -155,20 +170,37 @@ def get_pos_settings(pos_profile):
 				"silent_print",
 				"allow_sales_order",
 				"allow_select_sales_order",
-				"create_only_sales_order"
+				"create_only_sales_order",
+				"enable_currency_exchange",
 			],
 			as_dict=True
 		)
 
+		# Inject currency_setup if currency exchange is enabled
+		if pos_settings and pos_settings.get("enable_currency_exchange"):
+			settings_doc = frappe.get_doc("POS Settings", pos_settings["name"])
+			pos_settings["currency_setup"] = [
+				{
+					"currency": row.currency,
+					"cash_account": row.cash_account,
+					"company": row.company,
+					"buy_rate": flt(row.buy_rate),
+					"sell_rate": flt(row.sell_rate),
+				}
+				for row in settings_doc.currency_setup
+			]
+
 		if not pos_settings:
 			pos_settings = get_default_pos_settings()
 
-		# Inject allow_customer_payment from POS Profile
+		# Inject allow_customer_payment and allow_supplier_payment from POS Profile
 		try:
 			profile_doc = frappe.get_doc("POS Profile", pos_profile)
 			pos_settings["allow_customer_payment"] = int(profile_doc.get("allow_customer_payment", 0))
+			pos_settings["allow_supplier_payment"] = int(profile_doc.get("allow_supplier_payment", 0))
 		except Exception:
 			pos_settings["allow_customer_payment"] = 0
+			pos_settings["allow_supplier_payment"] = 0
 
 		return pos_settings
 	except Exception:
@@ -191,13 +223,16 @@ def get_default_pos_settings():
 		"allow_write_off_change": 0,
 		"allow_partial_payment": 0,
 		"allow_customer_payment": 0,
+		"allow_supplier_payment": 0,
 		"decimal_precision": "2",
 		"allow_negative_stock": 0,
 		"enable_sales_persons": "Disabled",
 		"silent_print": 0,
 		"allow_sales_order": 0,
 		"allow_select_sales_order": 0,
-		"create_only_sales_order": 0
+		"create_only_sales_order": 0,
+		"enable_currency_exchange": 0,
+		"currency_setup": [],
 	}
 
 

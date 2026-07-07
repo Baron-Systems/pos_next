@@ -103,11 +103,30 @@
 			</div>
 		</button>
 
+		<!-- Currency Exchange -->
+		<button
+			v-if="showCurrencyExchange"
+			@click="handleMenuClick('currency-exchange')"
+			:class="[
+				'w-12 h-12 rounded-lg flex items-center justify-center transition-all relative group',
+				activeMenu === 'currency-exchange'
+					? 'bg-yellow-100 text-yellow-600'
+					: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+			]"
+			:title="__('Currency Exchange')"
+		>
+			<FeatherIcon name="dollar-sign" class="w-5 h-5" />
+			<div class="absolute start-full ms-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+				{{ __('Currency Exchange') }}
+			</div>
+		</button>
+
 		<!-- Divider -->
 		<div class="w-8 border-t border-gray-200 my-2"></div>
 
 		<!-- Supplier -->
 		<button
+			v-if="settingsStore.allowSupplierPayment"
 			@click="handleMenuClick('supplier')"
 			:class="[
 				'w-12 h-12 rounded-lg flex items-center justify-center transition-all relative group',
@@ -143,9 +162,12 @@
 </template>
 
 <script setup>
+import { usePOSSettingsStore } from "@/stores/posSettings"
 import { FeatherIcon } from "frappe-ui"
 import { ref } from "vue"
 
+const settingsStore = usePOSSettingsStore()
+const props = defineProps({ showCurrencyExchange: { type: Boolean, default: false } })
 const emit = defineEmits(["menu-clicked"])
 
 const activeMenu = ref("")

@@ -163,6 +163,36 @@ export async function deleteDraft(draftId) {
 	})
 }
 
+// Update draft note
+export async function updateDraftNote(draftId, note) {
+	const database = await initDB()
+
+	return new Promise(async (resolve, reject) => {
+		try {
+			// Get existing draft
+			const existingDraft = await getDraftById(draftId)
+			if (!existingDraft) {
+				return reject(new Error("Draft not found"))
+			}
+
+			const updatedDraft = {
+				...existingDraft,
+				note: note || "",
+				updated_at: new Date().toISOString(),
+			}
+
+			const transaction = database.transaction([STORE_NAME], "readwrite")
+			const store = transaction.objectStore(STORE_NAME)
+			const request = store.put(updatedDraft)
+
+			request.onsuccess = () => resolve(updatedDraft)
+			request.onerror = () => reject(request.error)
+		} catch (error) {
+			reject(error)
+		}
+	})
+}
+
 // Clear all drafts
 export async function clearAllDrafts() {
 	const database = await initDB()

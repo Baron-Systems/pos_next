@@ -2,6 +2,7 @@ import { createResource } from "frappe-ui"
 import { computed, ref, toRaw } from "vue"
 import { isOffline } from "@/utils/offline"
 import { useSerialNumberStore } from "@/stores/serialNumber"
+import { usePOSPriceListStore } from "@/stores/posPriceList"
 import { CoalescingMutex } from "@/utils/mutex"
 import { logger } from "@/utils/logger"
 
@@ -17,6 +18,7 @@ const submitMutex = new CoalescingMutex({
 export function useInvoice() {
 	// Serial Number Store for returning serials when items are removed
 	const serialStore = useSerialNumberStore()
+	const priceListStore = usePOSPriceListStore()
 
 	// State
 	const invoiceItems = ref([])
@@ -234,6 +236,9 @@ export function useInvoice() {
 				// Add item_group and brand for offer eligibility checking
 				item_group: item.item_group,
 				brand: item.brand,
+				// Add valuation fields for cost display in EditItemDialog
+				valuation_rate: item.valuation_rate || 0,
+				last_purchase_rate: item.last_purchase_rate || 0,
 				// Add sales order linking fields - critical for status updates
 				against_sales_order: item.against_sales_order || null,
 				so_detail: item.so_detail || null,
@@ -772,6 +777,7 @@ export function useInvoice() {
 			is_pos: 1,
 			update_stock: 1,
 			is_return: hasNegativeQty ? 1 : 0,
+			price_list: priceListStore.activePriceList,
 		}
 
 		if (targetDoctype === "Sales Order") {
@@ -830,6 +836,7 @@ export function useInvoice() {
 					is_pos: 1,
 					update_stock: 1, // Critical: Ensures stock is updated
 					is_return: hasNegativeQty ? 1 : 0,
+					price_list: priceListStore.activePriceList,
 				}
 
 				if (targetDoctype === "Sales Order" && deliveryDate) {

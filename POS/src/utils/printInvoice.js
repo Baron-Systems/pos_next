@@ -309,6 +309,16 @@ export function printInvoiceCustom(invoiceData) {
 					`
 							: ""
 					}
+					${
+						invoiceData.note
+							? `
+					<div class="note" style="margin-top: 10px; padding: 8px; border: 1px dashed #000; font-size: 11px; background: #fff;">
+						<div style="font-weight: bold; margin-bottom: 3px;">${__('Note:')}</div>
+						<div style="word-break: break-word;">${invoiceData.note}</div>
+					</div>
+					`
+							: ""
+					}
 				</div>
 
 				<!-- Items -->

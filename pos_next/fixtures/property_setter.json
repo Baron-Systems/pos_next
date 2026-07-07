@@ -1,0 +1,14 @@
+[
+ {
+  "doc_type": "POS Profile",
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocField",
+  "field_name": "selling_price_list",
+  "modified": "2026-07-05 14:00:00.000000",
+  "module": "POS Next",
+  "name": "POS Profile-selling_price_list-hidden",
+  "property": "hidden",
+  "property_type": "Check",
+  "value": "1"
+ }
+]

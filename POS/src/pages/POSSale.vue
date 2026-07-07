@@ -25,12 +25,16 @@
 				:stock-sync-active="isStockSyncActive"
 				:is-refreshing="stockStore.refreshing"
 				:show-success-dialog="showSuccessDialogEnabled"
+				:price-lists="priceListStore.priceListOptions"
+				:selected-price-list="priceListStore.activePriceList"
+				:has-multiple-price-lists="priceListStore.hasMultiplePriceLists"
 				@sync-click="handleSyncClick"
 				@printer-click="uiStore.showHistoryDialog = true"
 				@refresh-click="handleRefresh"
 				@clear-cache="handleClearCache"
 				@logout="uiStore.showLogoutDialog = true"
 				@toggle-success-dialog="showSuccessDialogEnabled = !showSuccessDialogEnabled"
+				@price-list-change="handlePriceListChange"
 			>
 				<template #menu-items>
 					<button
@@ -175,7 +179,10 @@
 				style="max-height: calc(100vh - 60px - var(--header-height, 60px))"
 			>
 				<!-- Icon-Only Management Slider - Always Visible -->
-				<ManagementSlider @menu-clicked="handleManagementMenuClick" />
+				<ManagementSlider
+				:show-currency-exchange="posSettingsStore.enableCurrencyExchange && posSettingsStore.hasCurrencySetup"
+				@menu-clicked="handleManagementMenuClick"
+			/>
 
 				<!-- Main Content Container -->
 				<div
@@ -326,6 +333,7 @@
 								:applied-offers="cartStore.appliedOffers"
 								:warehouses="profileWarehouses"
 								:selected-payment-method="selectedQuickPaymentMethod"
+								:last-invoice-total="uiStore.lastInvoiceTotal"
 								@update-quantity="cartStore.updateItemQuantity"
 								@update-additional-discount="handleAdditionalDiscountUpdate"
 								@remove-item="
@@ -358,6 +366,7 @@
 								@show-history="uiStore.showHistoryDialog = true"
 								@show-return="uiStore.showReturnDialog = true"
 								@close-shift="handleCloseShift()"
+								@refocus-barcode="handleRefocusBarcode"
 							/>
 						</div>
 					</keep-alive>
@@ -440,28 +449,6 @@
 					</Button>
 				</div>
 			</div>
-
-			<!-- Payment Dialog -->
-		<PaymentDialog
-			v-model="uiStore.showPaymentDialog"
-			:grand-total="cartStore.grandTotal"
-			:subtotal="cartStore.subtotal"
-			:pos-profile="shiftStore.profileName"
-			:currency="shiftStore.profileCurrency"
-			:is-offline="offlineStore.isOffline"
-			:allow-partial-payment="posSettingsStore.allowPartialPayment"
-			:allow-credit-sale="posSettingsStore.allowCreditSale"
-			:customer="cartStore.customer"
-			:company="shiftStore.profileCompany"
-			:additional-discount="cartStore.additionalDiscount"
-			:items="cartStore.invoiceItems"
-			:tax-amount="cartStore.totalTax"
-			:discount-amount="cartStore.totalDiscount"
-			:target-doctype="cartStore.targetDoctype"
-			:is-submitting="cartStore.isSubmitting"
-			@payment-completed="handlePaymentCompleted"
-			@update-additional-discount="handleAdditionalDiscountUpdate"
-		/>
 
 			<!-- Customer Selection Dialog -->
 			<CustomerDialog
@@ -636,7 +623,16 @@
 				@print-invoice="handlePrintInvoice"
 			/>
 
-			<!-- Sales Orders Dialog -->
+			<!-- Currency Exchange Dialog -->
+		<CurrencyExchangeDialog
+			v-model="showCurrencyExchangeDialog"
+			:currency-setup="posSettingsStore.currencySetup"
+			:pos-opening-shift="shiftStore.currentShift?.name"
+			:pos-profile="shiftStore.profileName"
+			@exchange-completed="handleExchangeCompleted"
+		/>
+
+		<!-- Sales Orders Dialog -->
 			<SalesOrdersDialog
 				v-model="showSalesOrdersDialog"
 				:pos-profile="shiftStore.profileName"
@@ -943,6 +939,7 @@
 
 			<!-- Supplier Dialog (selection + payment) -->
 			<SupplierPaymentDialog
+				v-if="posSettingsStore.allowSupplierPayment"
 				v-model="showSupplierPaymentDialog"
 				:supplier="supplier"
 				:company="shiftStore.profileCompany"
@@ -999,10 +996,10 @@ import ItemSelectionDialog from "@/components/sale/ItemSelectionDialog.vue";
 import ItemsSelector from "@/components/sale/ItemsSelector.vue";
 import OffersDialog from "@/components/sale/OffersDialog.vue";
 import OfflineInvoicesDialog from "@/components/sale/OfflineInvoicesDialog.vue";
-import PaymentDialog from "@/components/sale/PaymentDialog.vue";
 import PromotionManagement from "@/components/sale/PromotionManagement.vue";
 import ReturnInvoiceDialog from "@/components/sale/ReturnInvoiceDialog.vue";
 import WarehouseAvailabilityDialog from "@/components/sale/WarehouseAvailabilityDialog.vue";
+import CurrencyExchangeDialog from "@/components/sale/CurrencyExchangeDialog.vue";
 import POSSettings from "@/components/settings/POSSettings.vue";
 import InvoiceManagement from "@/components/invoices/InvoiceManagement.vue";
 import InvoiceDetailDialog from "@/components/invoices/InvoiceDetailDialog.vue";
@@ -1027,6 +1024,7 @@ import { useStockStore } from "@/stores/stock";
 // Pinia Stores
 import { usePOSCartStore } from "@/stores/posCart";
 import { usePOSDraftsStore } from "@/stores/posDrafts";
+import { usePOSPriceListStore } from "@/stores/posPriceList";
 import { usePOSSettingsStore } from "@/stores/posSettings";
 import { usePOSShiftStore } from "@/stores/posShift";
 import { usePOSSyncStore } from "@/stores/posSync";
@@ -1042,6 +1040,7 @@ const bootstrapStore = useBootstrapStore();
 const offlineStore = usePOSSyncStore();
 const draftsStore = usePOSDraftsStore();
 const posSettingsStore = usePOSSettingsStore();
+const priceListStore = usePOSPriceListStore();
 const itemStore = useItemSearchStore();
 const stockStore = useStockStore();
 const showCustomerPaymentDialog = ref(false);
@@ -1049,6 +1048,20 @@ const showSupplierPaymentDialog = ref(false);
 const supplier = ref(null);
 const editingSupplier = ref(null);
 const selectedQuickPaymentMethod = ref(null);
+
+// Watch bootstrap data to auto-initialize payment method if it loads after mount
+watch(
+	() => bootstrapStore.loaded,
+	(loaded) => {
+		if (loaded && !selectedQuickPaymentMethod.value) {
+			const methods = bootstrapStore.getPreloadedPaymentMethods() || [];
+			if (methods.length > 0) {
+				selectedQuickPaymentMethod.value = methods[0];
+			}
+		}
+	}
+);
+
 const customerSearchStore = useCustomerSearchStore();
 // Note: settingsStore is an alias to posSettingsStore (same Pinia store singleton)
 const settingsStore = posSettingsStore;
@@ -1082,7 +1095,6 @@ const itemsSelectorRef = ref(null);
 const offersDialogRef = ref(null);
 const containerRef = ref(null);
 const dividerRef = ref(null);
-const pendingPaymentAfterCustomer = ref(false);
 const logoutAfterClose = ref(false);
 const editCustomer = ref(null); // Customer being edited (null for create mode)
 const showClearCacheDialog = ref(false);
@@ -1125,6 +1137,7 @@ const selectedInvoiceForView = ref(null);
 
 // Sales Orders dialog
 const showSalesOrdersDialog = ref(false);
+const showCurrencyExchangeDialog = ref(false);
 const showCreateSupplierDialog = ref(false);
 
 // Invoice history data (used by InvoiceManagement component)
@@ -1383,12 +1396,32 @@ onMounted(async () => {
 					await offlineStore.checkOfflineCacheAvailability();
 				}
 
+				// Ensure bootstrap data is loaded and has payment methods.
+				// If bootstrap was preloaded before shift opened, it may contain
+				// stale/empty payment_methods - reload in that case.
+				const methods = bootstrapStore.getPreloadedPaymentMethods() || [];
+				if (!bootstrapStore.loaded || methods.length === 0) {
+					if (bootstrapStore.loaded) bootstrapStore.reset();
+					await bootstrapStore.loadInitialData();
+				}
+
 				// Initialize default payment method for quick pay button
 				if (!selectedQuickPaymentMethod.value) {
-					const methods = bootstrapStore.getPreloadedPaymentMethods() || [];
-					if (methods.length > 0) {
-						selectedQuickPaymentMethod.value = methods[0];
+					const freshMethods = bootstrapStore.getPreloadedPaymentMethods() || [];
+					if (freshMethods.length > 0) {
+						selectedQuickPaymentMethod.value = freshMethods[0];
+					} else {
+						log.warn("No payment methods available from bootstrap");
 					}
+				}
+
+				// Load price lists for the active POS profile
+				await priceListStore.loadPriceLists(shiftStore.profileName);
+
+				// Reload items so prices reflect the persisted price list selection
+				itemStore.invalidateCache();
+				if (itemsSelectorRef.value) {
+					await itemsSelectorRef.value.loadItems();
 				}
 			}
 		}
@@ -1694,6 +1727,34 @@ async function handleShiftOpened() {
 		await posSettingsStore.loadSettings(shiftStore.profileName);
 		// Load tax rules with tax_inclusive setting
 		await cartStore.loadTaxRules(shiftStore.profileName, posSettingsStore.settings);
+
+		// CRITICAL: Reload bootstrap data after shift open.
+		// Bootstrap may have been preloaded before shift was opened,
+		// resulting in stale/empty payment_methods. Reset and reload
+		// to ensure payment methods are available for the current profile.
+		try {
+			bootstrapStore.reset();
+			await bootstrapStore.loadInitialData();
+
+			// Reinitialize payment methods from fresh bootstrap data
+			const methods = bootstrapStore.getPreloadedPaymentMethods() || [];
+			if (methods.length > 0) {
+				selectedQuickPaymentMethod.value = methods[0];
+			} else {
+				log.warn("No payment methods available after shift open");
+			}
+
+			// Reload price lists for the new shift
+			await priceListStore.loadPriceLists(shiftStore.profileName);
+
+			// Reload items so prices reflect the persisted price list selection
+			itemStore.invalidateCache();
+			if (itemsSelectorRef.value) {
+				await itemsSelectorRef.value.loadItems();
+			}
+		} catch (error) {
+			log.error("Failed to reload bootstrap after shift open:", error);
+		}
 	}
 	showSuccess(__("You can now start making sales"));
 }
@@ -1819,10 +1880,6 @@ function handleCustomerSelected(selectedCustomer) {
 		uiStore.showCustomerDialog = false;
 		showSuccess(__("{0} selected", [selectedCustomer.customer_name]));
 
-		if (pendingPaymentAfterCustomer.value) {
-			pendingPaymentAfterCustomer.value = false;
-			uiStore.showPaymentDialog = true;
-		}
 	} else {
 		cartStore.setCustomer(null);
 	}
@@ -1879,6 +1936,63 @@ function handleSwitchPaymentMethod() {
 	});
 }
 
+async function handlePriceListChange(newPriceList) {
+	if (!newPriceList || newPriceList === priceListStore.activePriceList) return;
+
+	const manualItems = cartStore.invoiceItems.filter((item) => item.is_manual_price);
+	let reapplyManual = true;
+	if (manualItems.length > 0) {
+		reapplyManual = await new Promise((resolve) => {
+			window.frappe?.confirm(
+				__("Some items have manually edited prices. Reapply the new price list prices?"),
+				() => resolve(true),
+				() => resolve(false)
+			);
+		});
+	}
+
+	priceListStore.setSelectedPriceList(newPriceList, shiftStore.profileName);
+
+	if (cartStore.invoiceItems.length > 0) {
+		await updateCartPricesForPriceList(reapplyManual);
+		cartStore.rebuildIncrementalCache();
+		previousCartHash = computeCartHash();
+		await cartStore.reapplyOffer(shiftStore.currentProfile);
+	}
+
+	itemStore.invalidateCache();
+	if (itemsSelectorRef.value) {
+		await itemsSelectorRef.value.loadItems();
+	}
+
+	showSuccess(__("Price list updated to {0}", [newPriceList]));
+}
+
+async function updateCartPricesForPriceList(reapplyManual) {
+	for (const item of cartStore.invoiceItems) {
+		if (item.is_manual_price && !reapplyManual) continue;
+		try {
+			const details = await call("pos_next.api.items.get_item_details", {
+				item_code: item.item_code,
+				pos_profile: cartStore.posProfile,
+				customer: cartStore.customer?.name || cartStore.customer,
+				qty: item.quantity,
+				uom: item.uom,
+				price_list: priceListStore.activePriceList,
+			});
+			const newRate = details?.price_list_rate || details?.rate || 0;
+			if (newRate > 0) {
+				item.rate = newRate;
+				item.price_list_rate = details.price_list_rate || newRate;
+				if (reapplyManual) item.is_manual_price = false;
+				cartStore.recalculateItem(item);
+			}
+		} catch (error) {
+			log.error("Failed to update price for item", item.item_code, error);
+		}
+	}
+}
+
 function handleQuickCashPay() {
 	handleQuickCashPayInternal(false);
 }
@@ -1896,8 +2010,7 @@ async function handleQuickCashPayInternal(forcePrint) {
 	}
 	const cashMethod = getDefaultCashPaymentMethod();
 	if (!cashMethod) {
-		showWarning(__("No payment method available. Use Checkout to select payment."));
-		uiStore.showPaymentDialog = true;
+		showWarning(__("No payment method available."));
 		return;
 	}
 	const grandTotal = cartStore.grandTotal;
@@ -2017,11 +2130,7 @@ async function handleDeleteFailedInvoice() {
 
 async function handleErrorRetry() {
 	uiStore.clearError();
-	if (uiStore.errorRetryAction === "payment") {
-		setTimeout(() => {
-			uiStore.showPaymentDialog = true;
-		}, 300);
-	} else if (uiStore.errorRetryAction === "sync") {
+	if (uiStore.errorRetryAction === "sync") {
 		await offlineStore.loadPendingInvoices();
 		setTimeout(() => {
 			handleSyncClick();
@@ -2031,12 +2140,18 @@ async function handleErrorRetry() {
 
 async function handlePaymentCompleted(paymentData, options = {}) {
 	try {
-		const customerValue = cartStore.customer?.name || cartStore.customer;
+		let customerValue = cartStore.customer?.name || cartStore.customer;
 		if (!customerValue && !shiftStore.profileCustomer) {
-			showWarning(__("Please select a customer before proceeding"));
-			uiStore.showPaymentDialog = false;
-			uiStore.showCustomerDialog = true;
-			return;
+			const favCustomer = customerSearchStore.favoriteCustomerObject;
+			if (favCustomer) {
+				cartStore.setCustomer(favCustomer);
+				customerValue = favCustomer.name;
+				showSuccess(__('Favorite customer {0} selected', [favCustomer.customer_name]));
+			} else {
+				showWarning(__("Please select a customer before proceeding"));
+				uiStore.showCustomerDialog = true;
+				return;
+			}
 		}
 		const forcePrint = options.forcePrint === true;
 
@@ -2092,7 +2207,6 @@ async function handlePaymentCompleted(paymentData, options = {}) {
 					paymentData.paid_amount
 				);
 			}
-			uiStore.showPaymentDialog = false;
 			await cartStore.clearCart();
 			// Set favorite customer after payment
 			await setFavoriteCustomerIfExists();
@@ -2116,7 +2230,6 @@ async function handlePaymentCompleted(paymentData, options = {}) {
 				const invoiceTotal = result.grand_total || result.total || 0;
 				const paidAmount = paymentData.paid_amount || invoiceTotal;
 
-				uiStore.showPaymentDialog = false;
 				await cartStore.clearCart();
 				// Set favorite customer after payment
 				await setFavoriteCustomerIfExists();
@@ -2149,14 +2262,12 @@ async function handlePaymentCompleted(paymentData, options = {}) {
 		}
 	} catch (error) {
 		log.error("Error submitting invoice:", error);
-		uiStore.showPaymentDialog = false;
 
 		const errorContext = parseError(error);
 		uiStore.showError(
 			errorContext.title || __("Error"),
 			errorContext.message || __("An unexpected error occurred"),
-			errorContext.technicalDetails || null,
-			errorContext.retryable ? "payment" : null
+			errorContext.technicalDetails || null
 		);
 
 		if (errorContext.type === "error") {
@@ -2309,6 +2420,12 @@ async function handleOptionSelected(option) {
 function handleCloseShift() {
 	uiStore.showCloseShiftDialog = true;
 }
+function handleRefocusBarcode() {
+	nextTick(() => {
+		const barcodeInput = document.getElementById("item-search");
+		if (barcodeInput) barcodeInput.focus();
+	});
+}
 
 function formatCurrency(amount) {
 	return Number.parseFloat(amount || 0).toFixed(2);
@@ -2336,7 +2453,8 @@ async function handleSaveDraft() {
 		cartStore.customer,
 		cartStore.posProfile,
 		cartStore.appliedOffers,
-		cartStore.currentDraftId
+		cartStore.currentDraftId,
+		cartStore.draftNote
 	);
 	if (savedDraft) {
 		cartStore.clearCart();
@@ -2379,6 +2497,7 @@ async function handleLoadDraft(draft) {
 		cartStore.invoiceItems = draftData.items;
 		cartStore.setCustomer(draftData.customer);
 		cartStore.currentDraftId = draft.draft_id; // Set current draft ID
+		cartStore.draftNote = draftData.note || ""; // Restore draft note
 
 		// Rebuild incremental cache to recalculate totals
 		cartStore.rebuildIncrementalCache();
@@ -2791,6 +2910,10 @@ function restoreBodyStyles() {
 }
 
 // Management and Promotion handlers
+function handleExchangeCompleted(result) {
+	log.info('Currency exchange completed:', result);
+}
+
 function handleManagementMenuClick(menuItem) {
 	if (menuItem === "promotions") {
 		showPromotionManagement.value = true;
@@ -2808,9 +2931,13 @@ function handleManagementMenuClick(menuItem) {
 	} else if (menuItem === "sales-orders") {
 		// Open Sales Orders dialog
 		showSalesOrdersDialog.value = true;
+	} else if (menuItem === "currency-exchange") {
+		showCurrencyExchangeDialog.value = true;
 	} else if (menuItem === "supplier") {
-		// Open unified supplier dialog (selection + payment)
-		showSupplierPaymentDialog.value = true;
+		// Open unified supplier dialog (selection + payment) only if enabled
+		if (posSettingsStore.allowSupplierPayment) {
+			showSupplierPaymentDialog.value = true;
+		}
 	}
 }
 

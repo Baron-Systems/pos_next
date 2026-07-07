@@ -62,11 +62,12 @@ export function useShift() {
 	// Create new opening shift
 	const createOpeningShift = createResource({
 		url: "pos_next.api.shifts.create_opening_shift",
-		makeParams({ pos_profile, company, balance_details }) {
+		makeParams({ pos_profile, company, balance_details, currency_opening_balances }) {
 			return {
 				pos_profile,
 				company,
 				balance_details: JSON.stringify(balance_details),
+				currency_opening_balances: currency_opening_balances ? JSON.stringify(currency_opening_balances) : null,
 			}
 		},
 		onSuccess(data) {

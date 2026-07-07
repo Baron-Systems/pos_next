@@ -1129,6 +1129,8 @@
 							type="number"
 							v-model.number="localAdditionalDiscount"
 							@input="handleAdditionalDiscountInput"
+							@focus="handleAdditionalDiscountFocus"
+							@blur="isAdditionalDiscountInputFocused = false"
 							:placeholder="additionalDiscountType === 'percentage' ? '0' : '0.00'"
 							:min="0"
 							:max="additionalDiscountType === 'percentage' ? 100 : Math.max(0, displaySubtotal)"
@@ -1274,19 +1276,32 @@
 						</button>
 					</div>
 
-					<!-- Hold Order Button -->
-					<button
-						type="button"
-						v-if="items.length > 0"
-						@click="$emit('save-draft')"
-						class="flex-1 min-w-0 py-2.5 px-2 rounded-lg font-semibold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 transition-all touch-manipulation active:scale-[0.98] inline-flex items-center justify-center gap-1.5 overflow-visible"
-						:aria-label="__('Hold order as draft')"
-					>
-						<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
-						</svg>
-						<span dir="ltr" class="whitespace-nowrap">{{ __("Hold", null, "order") }}</span>
-					</button>
+					<!-- Draft Note + Hold Order -->
+					<div class="flex-1 flex gap-1.5">
+						<!-- Draft Note -->
+						<div class="w-2/3">
+							<textarea
+								v-model="cartStore.draftNote"
+								rows="1"
+								class="w-full h-10 px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white resize-none"
+								:placeholder="__('اكتب ملاحظة للفاتورة قبل التعليق...')"
+							></textarea>
+						</div>
+
+						<!-- Hold Order Button -->
+						<button
+							type="button"
+							v-if="items.length > 0"
+							@click="$emit('save-draft')"
+							class="w-1/3 min-w-0 py-2.5 px-2 rounded-lg font-semibold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 transition-all touch-manipulation active:scale-[0.98] inline-flex items-center justify-center gap-1.5 overflow-visible"
+							:aria-label="__('Hold order as draft')"
+						>
+							<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+							</svg>
+							<span dir="ltr" class="whitespace-nowrap">{{ __("Hold", null, "order") }}</span>
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -1397,6 +1412,10 @@ const props = defineProps({
 		type: Object,
 		default: null,
 	},
+	lastInvoiceTotal: {
+		type: Number,
+		default: 0,
+	},
 });
 
 /**
@@ -1430,6 +1449,7 @@ const emit = defineEmits([
 	"show-return", // () - Open return invoice dialog
 	"close-shift", // () - Close current shift
 	"update-additional-discount", // (amount: number) - Set additional discount amount
+	"refocus-barcode", // () - Request parent to refocus barcode input
 	// "create-sales-order", // () - Create Sales Order // Removed as per instruction
 ]);
 
@@ -1459,6 +1479,7 @@ const openUomDropdown = ref(null);
 // Additional discount (above payment buttons) - local state for type and value
 const additionalDiscountType = ref(settingsStore.usePercentageDiscount ? "percentage" : "amount");
 const localAdditionalDiscount = ref(0);
+const isAdditionalDiscountInputFocused = ref(false);
 
 // Partial payment state
 const partialPaymentAmount = ref("");
@@ -1545,12 +1566,19 @@ watch(
 watch(
 	() => props.additionalDiscount,
 	(amount) => {
+		// Don't overwrite the user's typing while the input is focused
+		if (isAdditionalDiscountInputFocused.value) return;
+
 		const a = Number(amount) || 0;
 		const sub = displaySubtotal.value || 0;
+		let incoming = 0;
 		if (additionalDiscountType.value === "percentage") {
-			localAdditionalDiscount.value = sub > 0 ? Math.min(100, round2((a / sub) * 100)) : 0;
+			incoming = sub > 0 ? Math.min(100, round2((a / sub) * 100)) : 0;
 		} else {
-			localAdditionalDiscount.value = round2(a);
+			incoming = round2(a);
+		}
+		if (localAdditionalDiscount.value !== incoming) {
+			localAdditionalDiscount.value = incoming;
 		}
 	},
 	{ immediate: true },
@@ -1707,6 +1735,10 @@ const displaySubtotal = computed(() => {
  * @returns {Number} Grand total amount to display
  */
 const displayGrandTotal = computed(() => {
+	// If cart is empty, show last invoice total so cashier can see last sale
+	if (props.items.length === 0 && props.lastInvoiceTotal > 0) {
+		return props.lastInvoiceTotal;
+	}
 	// Always: displaySubtotal + tax - discount
 	// This makes the display consistent and intuitive
 	return displaySubtotal.value + props.taxAmount - props.discountAmount;
@@ -1893,6 +1925,12 @@ function round2(val) {
 	return Number(Number(val || 0).toFixed(2));
 }
 
+function handleAdditionalDiscountFocus(event) {
+	isAdditionalDiscountInputFocused.value = true;
+	// Auto-select the current value so typing replaces it
+	event?.target?.select();
+}
+
 function handleAdditionalDiscountInput() {
 	let value = localAdditionalDiscount.value;
 	let amount = 0;
@@ -1982,6 +2020,7 @@ function incrementQuantity(item) {
 	const step = getSmartStep(item.quantity);
 	const newQty = Math.round((item.quantity + step) * 10000) / 10000;
 	emit("update-quantity", item.item_code, newQty, item.uom, false);
+	emit("refocus-barcode");
 }
 
 /**
@@ -1994,6 +2033,7 @@ function decrementQuantity(item) {
 	const step = getSmartStep(item.quantity);
 	const newQty = Math.round((item.quantity - step) * 10000) / 10000;
 	emit("update-quantity", item.item_code, newQty, item.uom, false);
+	emit("refocus-barcode");
 }
 
 /**

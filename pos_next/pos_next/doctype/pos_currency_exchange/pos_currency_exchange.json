@@ -1,0 +1,222 @@
+{
+ "actions": [],
+ "autoname": "POSA-CE-.YY.-.#######",
+ "creation": "2026-07-04 16:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "transaction_details_section",
+  "posting_date",
+  "posting_time",
+  "user",
+  "company",
+  "pos_opening_shift",
+  "column_break_1",
+  "status",
+  "exchange_details_section",
+  "transaction_type",
+  "source_currency",
+  "source_amount",
+  "exchange_rate",
+  "column_break_2",
+  "target_currency",
+  "target_amount",
+  "journal_entry",
+  "accounts_section",
+  "source_account",
+  "target_account"
+ ],
+ "fields": [
+  {
+   "fieldname": "transaction_details_section",
+   "fieldtype": "Section Break",
+   "label": "Transaction Details"
+  },
+  {
+   "default": "Today",
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "posting_time",
+   "fieldtype": "Time",
+   "label": "Time",
+   "reqd": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "pos_opening_shift",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "POS Opening Shift",
+   "options": "POS Opening Shift"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Submitted",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Draft\nSubmitted\nCancelled",
+   "reqd": 1
+  },
+  {
+   "fieldname": "exchange_details_section",
+   "fieldtype": "Section Break",
+   "label": "Exchange Details"
+  },
+  {
+   "default": "Buy",
+   "fieldname": "transaction_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Transaction Type",
+   "options": "Buy\nSell",
+   "reqd": 1
+  },
+  {
+   "fieldname": "source_currency",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Source Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "source_amount",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Source Amount",
+   "precision": "2",
+   "reqd": 1
+  },
+  {
+   "fieldname": "exchange_rate",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Exchange Rate",
+   "precision": "6",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "target_currency",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Target Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "target_amount",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Target Amount",
+   "precision": "2",
+   "reqd": 1
+  },
+  {
+   "fieldname": "journal_entry",
+   "fieldtype": "Link",
+   "label": "Journal Entry",
+   "options": "Journal Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "accounts_section",
+   "fieldtype": "Section Break",
+   "label": "Accounts"
+  },
+  {
+   "fieldname": "source_account",
+   "fieldtype": "Link",
+   "label": "Source Account (Credit)",
+   "options": "Account",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "target_account",
+   "fieldtype": "Link",
+   "label": "Target Account (Debit)",
+   "options": "Account",
+   "read_only": 1,
+   "reqd": 1
+  }
+ ],
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-07-05 10:35:00.000000",
+ "modified_by": "Administrator",
+ "module": "POS Next",
+ "name": "POS Currency Exchange",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

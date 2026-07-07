@@ -25,6 +25,8 @@
   "payment_reconciliation_details",
   "section_break_11",
   "payment_reconciliation",
+  "currency_reconciliation_section",
+  "currency_closing_balances",
   "section_break_13",
   "grand_total",
   "net_total",
@@ -128,6 +130,18 @@
    "fieldtype": "Table",
    "label": "Payment Reconciliation",
    "options": "POS Closing Shift Detail"
+  },
+  {
+   "depends_on": "eval:doc.pos_profile && frappe.db.get_value('POS Settings', {'pos_profile': doc.pos_profile}, 'enable_currency_exchange')",
+   "fieldname": "currency_reconciliation_section",
+   "fieldtype": "Section Break",
+   "label": "Currency Reconciliation"
+  },
+  {
+   "fieldname": "currency_closing_balances",
+   "fieldtype": "Table",
+   "label": "Currency Closing Balances",
+   "options": "POS Closing Shift Currency Balance"
   },
   {
    "collapsible": 1,

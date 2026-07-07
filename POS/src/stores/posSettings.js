@@ -1,7 +1,6 @@
 import { createResource } from "frappe-ui"
 import { defineStore } from "pinia"
 import { computed, ref } from "vue"
-import { useBootstrapStore } from "./bootstrap"
 
 export const usePOSSettingsStore = defineStore("posSettings", () => {
 	// State
@@ -44,6 +43,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		allow_customer_purchase_order: 0,
 		allow_duplicate_customer_names: 0,
 		allow_customer_payment: 0,
+		allow_supplier_payment: 0,
 		fetch_coupon: 0,
 		// Printing
 		allow_print_last_invoice: 0,
@@ -62,6 +62,9 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		allow_negative_stock: 0,
 		// Sales Persons
 		enable_sales_persons: "Disabled",
+		// Currency Exchange
+		enable_currency_exchange: 0,
+		currency_setup: [],
 	})
 
 	const isLoading = ref(false)
@@ -167,6 +170,9 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	const allowCustomerPayment = computed(() =>
 		Boolean(settings.value.allow_customer_payment),
 	)
+	const allowSupplierPayment = computed(() =>
+		Boolean(settings.value.allow_supplier_payment),
+	)
 	const fetchCoupon = computed(() => Boolean(settings.value.fetch_coupon))
 
 	// Computed - Printing
@@ -220,12 +226,29 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		settings.value.enable_sales_persons === "Multiple"
 	)
 
+	// Computed - Currency Exchange
+	const enableCurrencyExchange = computed(() =>
+		Number(settings.value.enable_currency_exchange) === 1
+	)
+	const currencySetup = computed(() =>
+		enableCurrencyExchange.value ? (settings.value.currency_setup || []) : []
+	)
+	const hasCurrencySetup = computed(() =>
+		enableCurrencyExchange.value &&
+		Array.isArray(settings.value.currency_setup) &&
+		settings.value.currency_setup.length >= 2
+	)
+
 	// Resource
 	const settingsResource = createResource({
 		url: "pos_next.pos_next.doctype.pos_settings.pos_settings.get_pos_settings",
 		onSuccess(data) {
 			console.log('[POSSettings Store] Loaded settings:', data)
 			if (data) {
+				// Clear currency_setup if exchange is disabled to avoid stale data
+				if (!data.enable_currency_exchange) {
+					data.currency_setup = []
+				}
 				Object.assign(settings.value, data)
 				console.log('[POSSettings Store] Updated settings.value:', settings.value)
 				isLoaded.value = true
@@ -250,10 +273,15 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 
 		// OPTIMIZATION: Check if bootstrap has preloaded the settings
 		try {
+			const { useBootstrapStore } = await import("./bootstrap")
 			const bootstrapStore = useBootstrapStore()
 			const preloadedSettings = bootstrapStore.getPreloadedPOSSettings()
 			if (preloadedSettings && Object.keys(preloadedSettings).length > 0) {
 				console.log('[POSSettings Store] Using preloaded settings from bootstrap:', preloadedSettings)
+				// Clear currency_setup if exchange is disabled to avoid stale data
+				if (!preloadedSettings.enable_currency_exchange) {
+					preloadedSettings.currency_setup = []
+				}
 				Object.assign(settings.value, preloadedSettings)
 				isLoaded.value = true
 				isLoading.value = false
@@ -310,6 +338,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			allow_customer_purchase_order: 0,
 			allow_duplicate_customer_names: 0,
 			allow_customer_payment: 0,
+			allow_supplier_payment: 0,
 			fetch_coupon: 0,
 			allow_print_last_invoice: 0,
 			silent_print: 0,
@@ -323,6 +352,9 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			input_qty: 0,
 			allow_negative_stock: 0,
 			enable_sales_persons: "Disabled",
+			// Currency Exchange
+			enable_currency_exchange: 0,
+			currency_setup: [],
 		}
 		isLoaded.value = false
 	}
@@ -426,6 +458,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		allowCustomerPurchaseOrder,
 		allowDuplicateCustomerNames,
 		allowCustomerPayment,
+		allowSupplierPayment,
 		fetchCoupon,
 
 		// Computed - Printing
@@ -452,6 +485,11 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		salesPersonsMode,
 		isSingleSalesPerson,
 		isMultipleSalesPersons,
+
+		// Computed - Currency Exchange
+		enableCurrencyExchange,
+		currencySetup,
+		hasCurrencySetup,
 
 		// Actions
 		loadSettings,

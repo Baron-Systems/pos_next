@@ -48,11 +48,38 @@
 							:label="__('Shift Open:')"
 							:value="shiftDuration"
 						/>
+
+						<!-- Price List Selector -->
+						<div
+							v-if="hasMultiplePriceLists"
+							class="flex items-center gap-2 ms-4"
+						>
+							<label class="text-xs text-gray-500 whitespace-nowrap">{{ __('Price List') }}</label>
+							<SelectInput
+								:model-value="selectedPriceList"
+								:options="priceListOptions"
+								:placeholder="__('Select Price List')"
+								select-class="w-40 text-xs"
+								@change="emit('price-list-change', $event)"
+							/>
+						</div>
 					</div>
 
 					<!-- Mobile Time Display - Very compact -->
-					<div class="flex lg:hidden items-center text-[10px] text-gray-600 font-medium flex-shrink-0 ms-1">
+					<div class="flex lg:hidden items-center gap-2 text-[10px] text-gray-600 font-medium flex-shrink-0 ms-1">
 						<span class="hidden xs:inline whitespace-nowrap">{{ currentTime }}</span>
+						<div
+							v-if="hasMultiplePriceLists"
+							class="w-24 flex-shrink-0"
+						>
+							<SelectInput
+								:model-value="selectedPriceList"
+								:options="priceListOptions"
+								:placeholder="__('Price List')"
+								select-class="text-[10px] h-6 px-1 pe-6"
+								@change="emit('price-list-change', $event)"
+							/>
+						</div>
 					</div>
 				</div>
 
@@ -268,11 +295,19 @@ import ActionButton from "@/components/common/ActionButton.vue"
 import StatusBadge from "@/components/common/StatusBadge.vue"
 import UserMenu from "@/components/common/UserMenu.vue"
 import LanguageSwitcher from "@/components/common/LanguageSwitcher.vue"
-import { ref } from "vue"
+import SelectInput from "@/components/common/SelectInput.vue"
+import { computed, ref } from "vue"
 import { version } from "../../../package.json"
 
 const showCacheTooltip = ref(false)
 const appVersion = version
+
+const priceListOptions = computed(() => {
+	return props.priceLists.map((priceList) => ({
+		value: priceList.price_list,
+		label: priceList.price_list,
+	}))
+})
 
 const emit = defineEmits([
 	"sync-click",
@@ -284,6 +319,7 @@ const emit = defineEmits([
 	"menu-closed",
 	"clear-cache",
 	"toggle-success-dialog",
+	"price-list-change",
 ])
 
 function handleClearCacheClick() {
@@ -360,6 +396,18 @@ const props = defineProps({
 	showSuccessDialog: {
 		type: Boolean,
 		default: true,
+	},
+	priceLists: {
+		type: Array,
+		default: () => [],
+	},
+	selectedPriceList: {
+		type: String,
+		default: null,
+	},
+	hasMultiplePriceLists: {
+		type: Boolean,
+		default: false,
 	},
 })
 

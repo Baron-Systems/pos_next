@@ -49,10 +49,19 @@ def get_pos_profile_data(pos_profile):
 	# Get POS Settings for this profile
 	pos_settings = get_pos_settings(pos_profile)
 
+	allowed_price_lists = []
+	for row in profile_doc.get("posa_allowed_price_lists", []):
+		allowed_price_lists.append({
+			"price_list": row.price_list,
+			"is_default": row.is_default,
+		})
+
 	return {
 		"pos_profile": profile_doc,
 		"company": company_doc,
 		"pos_settings": pos_settings,
+		"allowed_price_lists": allowed_price_lists,
+		"default_price_list": profile_doc.selling_price_list,
 		"print_settings": {
 			"auto_print": profile_doc.get("print_receipt_on_order_complete", 0),
 			"print_format": profile_doc.get("print_format"),

@@ -8,6 +8,7 @@ import { createResource } from "frappe-ui"
 import { defineStore } from "pinia"
 import { computed, ref } from "vue"
 import { useStockStore } from "./stock"
+import { usePOSPriceListStore } from "@/stores/posPriceList"
 import { useRealtimePosProfile } from "@/composables/useRealtimePosProfile"
 
 const log = logger.create('ItemSearch')
@@ -43,6 +44,7 @@ async function cacheVariantsForTemplates(items, posProfile) {
 				const response = await call("pos_next.api.items.get_item_variants", {
 					template_item: template.item_code,
 					pos_profile: posProfile,
+					price_list: usePOSPriceListStore().activePriceList,
 				})
 				const variants = response?.message || response || []
 
@@ -77,6 +79,7 @@ async function cacheVariantsForTemplates(items, posProfile) {
 export const useItemSearchStore = defineStore("itemSearch", () => {
 	// Get stock store instance
 	const stockStore = useStockStore()
+	const priceListStore = usePOSPriceListStore()
 
 	// Real-time POS Profile updates
 	const { onPosProfileUpdate } = useRealtimePosProfile()
@@ -856,6 +859,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 				// Fetch first batch (e.g., 20-50 items) for fast initial render
 				const response = await call("pos_next.api.items.get_items", {
 					pos_profile: profile,
+					price_list: priceListStore.activePriceList,
 					search_term: "",
 					item_group: null, // No filter - get items from all groups
 					start: 0,
@@ -926,6 +930,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 			try {
 				const response = await call("pos_next.api.items.get_items", {
 					pos_profile: profile,
+					price_list: priceListStore.activePriceList,
 					search_term: "",
 					item_group: itemGroup,
 					start: 0,
@@ -1055,6 +1060,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 			// limit: itemsPerPage (e.g., 50 items per batch)
 			const response = await call("pos_next.api.items.get_items", {
 				pos_profile: posProfile.value,
+				price_list: priceListStore.activePriceList,
 				search_term: "",
 				item_group: null, // No filter - get items from all groups
 				start: currentOffset.value,
@@ -1136,6 +1142,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 				log.debug(`Background sync: fetching batch at offset ${offset}`)
 				const response = await call("pos_next.api.items.get_items", {
 					pos_profile: profile,
+					price_list: priceListStore.activePriceList,
 					search_term: "",
 					item_group: null, // No filters for background sync
 					start: offset,
@@ -1259,6 +1266,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					log.debug(`Searching server for: "${term}"`)
 					const response = await call("pos_next.api.items.get_items", {
 						pos_profile: posProfile.value,
+						price_list: priceListStore.activePriceList,
 						search_term: term,
 						item_group: selectedItemGroup.value,
 						start: 0,
@@ -1324,6 +1332,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 			const result = await searchByBarcodeResource.submit({
 				barcode: barcode,
 				pos_profile: posProfile.value,
+				price_list: priceListStore.activePriceList,
 			})
 
 			const item = result?.message || result
@@ -1511,6 +1520,8 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 	function invalidateCache() {
 		// Clear caches to force UI refresh with updated stock
 		clearBaseCache()
+		// Mark server data as stale so the next load fetches fresh prices
+		serverDataFresh.value = false
 	}
 
 	// Stock delegates - Smart & minimal!

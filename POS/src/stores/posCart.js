@@ -1,5 +1,6 @@
 import { useInvoice } from "@/composables/useInvoice"
 import { usePOSOffersStore } from "@/stores/posOffers"
+import { usePOSPriceListStore } from "@/stores/posPriceList"
 import { usePOSSettingsStore } from "@/stores/posSettings"
 import { parseError } from "@/utils/errorHandler"
 import {
@@ -112,6 +113,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 
 	const offersStore = usePOSOffersStore()
 	const settingsStore = usePOSSettingsStore()
+	const priceListStore = usePOSPriceListStore()
 
 	// Additional cart state
 	const pendingItem = ref(null)
@@ -122,6 +124,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	const suppressOfferReapply = ref(false)
 	const currentDraftId = ref(null)
 	const targetDoctype = ref("Sales Invoice")
+	const draftNote = ref("")
 
 	// Offer processing state management
 	const offerProcessingState = ref({
@@ -227,6 +230,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 		appliedCoupon.value = null
 		currentDraftId.value = null
 		targetDoctype.value = "Sales Invoice"
+		draftNote.value = ""
 
 		// Reset offer processing state
 		suppressOfferReapply.value = false
@@ -301,6 +305,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	function buildOfferEvaluationPayload(currentProfile) {
 		// Use toRaw() to ensure we get current, non-reactive values (prevents stale cached quantities)
 		const rawItems = toRaw(invoiceItems.value)
+		const activePriceList = priceListStore.activePriceList || currentProfile?.selling_price_list
 
 		return {
 			doctype: "Sales Invoice",
@@ -308,7 +313,8 @@ export const usePOSCartStore = defineStore("posCart", () => {
 			customer:
 				customer.value?.name || customer.value || currentProfile?.customer,
 			company: currentProfile?.company,
-			selling_price_list: currentProfile?.selling_price_list,
+			price_list: activePriceList,
+			selling_price_list: activePriceList,
 			currency: currentProfile?.currency,
 			discount_amount: additionalDiscount.value || 0,
 			coupon_code: appliedCoupon.value?.name || "",
@@ -1261,6 +1267,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 			customer: customer.value?.name || customer.value,
 			qty,
 			uom: newUom,
+			price_list: priceListStore.activePriceList,
 		})
 
 		const uomData = cartItem.item_uoms?.find((u) => u.uom === newUom)
@@ -1341,6 +1348,10 @@ export const usePOSCartStore = defineStore("posCart", () => {
 			if (updates.rate !== undefined) {
 				console.log('[updateItemDetails] Setting rate from', cartItem.rate, 'to', updates.rate)
 				cartItem.rate = updates.rate
+				// Mark the item as manually priced when the rate is explicitly changed
+				if (updates.rate !== cartItem.price_list_rate) {
+					cartItem.is_manual_price = true
+				}
 				// Also update price_list_rate to ensure recalculation uses the new rate
 				cartItem.price_list_rate = updates.rate
 			}
@@ -1348,6 +1359,8 @@ export const usePOSCartStore = defineStore("posCart", () => {
 			if (updates.discount_amount !== undefined) cartItem.discount_amount = updates.discount_amount
 			if (updates.price_list_rate !== undefined) cartItem.price_list_rate = updates.price_list_rate
 			if (updates.serial_no !== undefined) cartItem.serial_no = updates.serial_no
+			if (updates.valuation_rate !== undefined) cartItem.valuation_rate = updates.valuation_rate
+			if (updates.last_purchase_rate !== undefined) cartItem.last_purchase_rate = updates.last_purchase_rate
 
 			console.log('[updateItemDetails] Before recalculate - rate:', cartItem.rate, 'price_list_rate:', cartItem.price_list_rate)
 			recalculateItem(cartItem)
@@ -1697,6 +1710,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 		selectionMode,
 		suppressOfferReapply,
 		currentDraftId,
+		draftNote,
 		offerProcessingState, // Offer processing state for UI feedback
 
 		// Computed

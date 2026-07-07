@@ -112,6 +112,20 @@ export const useBootstrapStore = defineStore("bootstrap", () => {
 	}
 
 	/**
+	 * Get allowed price lists from the preloaded POS profile or empty array
+	 */
+	function getPreloadedAllowedPriceLists() {
+		return data.value?.pos_profile?.allowed_price_lists || []
+	}
+
+	/**
+	 * Get default price list from the preloaded POS profile or null
+	 */
+	function getPreloadedDefaultPriceList() {
+		return data.value?.pos_profile?.default_price_list || null
+	}
+
+	/**
 	 * Check if bootstrap data is available
 	 */
 	function hasBootstrapData() {
@@ -142,6 +156,8 @@ export const useBootstrapStore = defineStore("bootstrap", () => {
 		getPreloadedPOSProfile,
 		getPreloadedPOSSettings,
 		getPreloadedPaymentMethods,
+		getPreloadedAllowedPriceLists,
+		getPreloadedDefaultPriceList,
 		hasBootstrapData,
 		reset,
 	}

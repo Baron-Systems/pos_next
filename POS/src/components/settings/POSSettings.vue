@@ -354,6 +354,30 @@
 												:description="__('Enable partial payment for invoices')"
 											/>
 											<CheckboxField
+												v-model="settings.enable_currency_exchange"
+												:label="__('Enable Currency Exchange')"
+												:description="__('Enable currency exchange between cash accounts in POS')"
+											/>
+											<div v-if="settings.enable_currency_exchange" class="ps-6 border-s-2 border-blue-200">
+												<p class="text-xs text-blue-700 mb-2">
+													{{ __('Configure currencies and cash accounts in POS Settings via Desk.') }}
+												</p>
+												<div v-if="settings.currency_setup && settings.currency_setup.length > 0" class="space-y-1">
+													<div
+														v-for="row in settings.currency_setup"
+														:key="row.currency"
+														class="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded"
+													>
+														<span class="font-medium">{{ row.currency }}</span>
+														<span class="text-gray-400">→</span>
+														<span>{{ row.cash_account }}</span>
+													</div>
+												</div>
+												<p v-else class="text-xs text-orange-600">
+													{{ __('No currencies configured yet. Please configure in Desk.') }}
+												</p>
+											</div>
+											<CheckboxField
 												v-model="settings.silent_print"
 												:label="__('Silent Print')"
 												:description="__('Print without confirmation')"
@@ -433,6 +457,7 @@ const settings = ref({
 	allow_partial_payment: 0,
 	silent_print: 0,
 	allow_negative_stock: 0,
+	enable_currency_exchange: 0,
 	tax_inclusive: 0,
 })
 

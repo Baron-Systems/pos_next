@@ -237,6 +237,9 @@
                   <div class="mt-1 text-xs text-gray-500">
                     {{ payment.mode_of_payment }}
                   </div>
+                  <div class="mt-1 text-xs font-medium text-gray-700">
+                    {{ __('Party Type') }}: <span class="text-green-800 bg-green-100 px-1.5 py-0.5 rounded">{{ payment.party_type || __('Customer') }}</span>
+                  </div>
                 </div>
                 <div class="bg-gray-50 p-3">
                   <div class="flex justify-between items-center">
@@ -254,7 +257,8 @@
                   <thead class="bg-gray-50">
                     <tr>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Payment Entry') }}</th>
-                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Customer') }}</th>
+                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Party Type') }}</th>
+                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Party Name') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Mode of Payment') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Date') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Amount') }}</th>
@@ -266,6 +270,11 @@
                       <td class="text-start px-6 py-4 whitespace-nowrap">
                         <span class="text-sm font-medium text-gray-900">
                           {{ payment.payment_entry || __('N/A') }}
+                        </span>
+                      </td>
+                      <td class="text-start px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
+                          {{ payment.party_type || __('Customer') }}
                         </span>
                       </td>
                       <td class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-600">
@@ -288,7 +297,7 @@
                   </tbody>
                   <tfoot class="bg-gray-50">
                     <tr>
-                      <td colspan="4" class="px-6 py-4 text-start text-sm font-semibold text-gray-700">
+                      <td colspan="5" class="px-6 py-4 text-start text-sm font-semibold text-gray-700">
                         {{ __('Total Payments:') }}
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-start">
@@ -353,6 +362,9 @@
                   <div class="mt-1 text-xs text-gray-500">
                     {{ payment.mode_of_payment }}
                   </div>
+                  <div class="mt-1 text-xs font-medium text-gray-700">
+                    {{ __('Party Type') }}: <span class="text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">{{ payment.party_type || __('Supplier') }}</span>
+                  </div>
                 </div>
                 <div class="bg-gray-50 p-3">
                   <div class="flex justify-between items-center">
@@ -370,7 +382,8 @@
                   <thead class="bg-gray-50">
                     <tr>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Payment Entry') }}</th>
-                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Supplier') }}</th>
+                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Party Type') }}</th>
+                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Party Name') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Mode of Payment') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Date') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Amount') }}</th>
@@ -382,6 +395,11 @@
                       <td class="text-start px-6 py-4 whitespace-nowrap">
                         <span class="text-sm font-medium text-gray-900">
                           {{ payment.payment_entry || __('N/A') }}
+                        </span>
+                      </td>
+                      <td class="text-start px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-800 rounded">
+                          {{ payment.party_type || __('Supplier') }}
                         </span>
                       </td>
                       <td class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-600">
@@ -404,7 +422,7 @@
                   </tbody>
                   <tfoot class="bg-gray-50">
                     <tr>
-                      <td colspan="4" class="px-6 py-4 text-start text-sm font-semibold text-gray-700">
+                      <td colspan="5" class="px-6 py-4 text-start text-sm font-semibold text-gray-700">
                         {{ __('Total Payments:') }}
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-start">
@@ -627,6 +645,153 @@
             </div>
           </div>
 
+          <!-- Currency Reconciliation -->
+          <div v-if="closingData.currency_closing_balances && closingData.currency_closing_balances.length > 0" class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+            <div class="px-3 py-3 md:px-6 md:py-4 bg-gray-50 border-b border-gray-200">
+              <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <h3 class="text-sm md:text-lg font-semibold text-gray-900">{{ __('Currency Reconciliation') }}</h3>
+                  <p class="text-xs md:text-sm text-gray-600">{{ __('Enter actual amounts for each currency') }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-3 md:p-6">
+              <div class="flex flex-col gap-3 md:gap-4">
+                <div
+                  v-for="(cb, idx) in closingData.currency_closing_balances"
+                  :key="idx"
+                  :class="[
+                    'border rounded-lg p-3 md:p-4 transition-all',
+                    cb.difference === 0 ? 'border-green-200 bg-green-50' :
+                    cb.difference > 0 ? 'border-blue-200 bg-blue-50' :
+                    'border-red-200 bg-red-50'
+                  ]"
+                >
+                  <div class="flex items-start justify-between mb-3 md:mb-4 gap-2">
+                    <div>
+                      <h4 class="text-start text-sm md:text-base font-semibold text-gray-900">{{ cb.currency }}</h4>
+                      <p class="text-xs text-gray-500">{{ cb.account }}</p>
+                    </div>
+                    <div v-if="cb.closing_amount !== null && cb.closing_amount !== undefined" class="flex-shrink-0">
+                      <span v-if="cb.difference === 0" class="inline-flex items-center px-2 md:px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        {{ __('✓ Balanced') }}
+                      </span>
+                      <span v-else-if="cb.difference > 0" class="inline-flex items-center px-2 md:px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {{ __('Over {0}', [formatCurrency(cb.difference)]) }}
+                      </span>
+                      <span v-else class="inline-flex items-center px-2 md:px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        {{ __('Short {0}', [formatCurrency(Math.abs(cb.difference))]) }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3">
+                    <div class="text-start bg-white rounded-lg p-2 md:p-3 border border-gray-200">
+                      <label class="block text-xs font-medium text-gray-500 uppercase mb-0.5 md:mb-1">{{ __('Opening') }}</label>
+                      <div class="text-sm md:text-base font-semibold text-gray-900">{{ formatCurrency(cb.opening_amount) }}</div>
+                    </div>
+                    <div class="text-start bg-white rounded-lg p-2 md:p-3 border border-gray-200">
+                      <label class="block text-xs font-medium text-gray-500 uppercase mb-0.5 md:mb-1">{{ __('Net Exchange') }}</label>
+                      <div :class="['text-sm md:text-base font-semibold', cb.net_exchange >= 0 ? 'text-green-700' : 'text-red-700']">{{ cb.net_exchange >= 0 ? '+' : '' }}{{ formatCurrency(cb.net_exchange) }}</div>
+                    </div>
+                    <div class="text-start bg-white rounded-lg p-2 md:p-3 border border-gray-200">
+                      <label class="block text-xs font-medium text-gray-500 uppercase mb-0.5 md:mb-1">{{ __('Expected') }}</label>
+                      <div class="text-sm md:text-base font-semibold text-gray-900">{{ formatCurrency(cb.expected_amount) }}</div>
+                    </div>
+                    <div class="text-start bg-white rounded-lg p-2 md:p-3 border border-gray-300">
+                      <label class="block text-xs font-medium text-gray-700 uppercase mb-0.5 md:mb-1">{{ __('Actual *') }}</label>
+                      <Input
+                        :modelValue="cb.closing_amount"
+                        @update:modelValue="(value) => updateCurrencyClosingAmount(cb, value)"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        :disabled="showSuccessReport || submitResource.loading"
+                        class="text-sm md:text-base"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Currency Exchange Operations -->
+          <div v-if="hasCurrencyExchangeOperations" class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+            <div class="px-3 py-3 md:px-6 md:py-4 bg-gray-50 border-b border-gray-200">
+              <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <h3 class="text-sm md:text-lg font-semibold text-gray-900">{{ __('عمليات صرف العملات') }}</h3>
+                  <p class="text-xs md:text-sm text-gray-600">{{ __('{0} معاملات', [currencyExchangeCount]) }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th scope="col" class="px-3 py-2 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                    <th scope="col" class="px-3 py-2 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('التاريخ / الوقت') }}</th>
+                    <th scope="col" class="px-3 py-2 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('المصدر') }}</th>
+                    <th scope="col" class="px-3 py-2 text-end text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('المبلغ المصدر') }}</th>
+                    <th scope="col" class="px-3 py-2 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('المستهدف') }}</th>
+                    <th scope="col" class="px-3 py-2 text-end text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('المبلغ المستهدف') }}</th>
+                    <th scope="col" class="px-3 py-2 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('المرجع') }}</th>
+                    <th scope="col" class="px-3 py-2 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('الحالة') }}</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <tr v-for="(op, idx) in currencyExchangeOperations" :key="idx">
+                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{{ idx + 1 }}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {{ formatDateTime(op.posting_date + ' ' + op.posting_time) }}
+                    </td>
+                    <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {{ op.source_currency }}
+                    </td>
+                    <td class="px-3 py-2 whitespace-nowrap text-sm font-semibold text-end"
+                      :class="op.transaction_type === 'Sell' ? 'text-amber-700' : 'text-green-700'">
+                      {{ op.transaction_type === 'Sell' ? '-' : '+' }}{{ formatCurrency(op.source_amount) }}
+                    </td>
+                    <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {{ op.target_currency }}
+                    </td>
+                    <td class="px-3 py-2 whitespace-nowrap text-sm font-semibold text-end"
+                      :class="op.transaction_type === 'Sell' ? 'text-green-700' : 'text-amber-700'">
+                      {{ op.transaction_type === 'Sell' ? '+' : '-' }}{{ formatCurrency(op.target_amount) }}
+                    </td>
+                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {{ op.name }}
+                    </td>
+                    <td class="px-3 py-2 whitespace-nowrap">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                        {{ __(op.status) }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot class="bg-gray-50">
+                  <tr>
+                    <td class="px-3 py-2 text-sm font-bold text-gray-900" colspan="3">{{ __('المجاميع') }}</td>
+                    <td class="px-3 py-2 text-sm font-bold text-end"
+                      :class="totalSourceExchanged >= 0 ? 'text-green-700' : 'text-amber-700'">
+                      {{ totalSourceExchanged >= 0 ? '+' : '' }}{{ formatCurrency(Math.abs(totalSourceExchanged)) }}
+                    </td>
+                    <td class="px-3 py-2"></td>
+                    <td class="px-3 py-2 text-sm font-bold text-end"
+                      :class="totalTargetExchanged >= 0 ? 'text-green-700' : 'text-amber-700'">
+                      {{ totalTargetExchanged >= 0 ? '+' : '' }}{{ formatCurrency(Math.abs(totalTargetExchanged)) }}
+                    </td>
+                    <td class="px-3 py-2" colspan="2"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
           <!-- Tax Summary (hidden in entry mode when hideExpectedAmount is enabled) -->
           <div v-if="shouldShowSummary && closingData.taxes && closingData.taxes.length > 0" class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
             <div class="px-3 py-3 md:px-6 md:py-4 bg-gray-50 border-b border-gray-200">
@@ -813,6 +978,22 @@ async function loadClosingData() {
 			})
 		}
 
+		// Make currency_closing_balances reactive
+		if (data.currency_closing_balances) {
+			data.currency_closing_balances = data.currency_closing_balances.map((cb) => {
+				const hasClosing = cb.closing_amount !== null && cb.closing_amount !== undefined && cb.closing_amount !== '' && Number.parseFloat(cb.closing_amount) > 0
+				const defaultClosing = hasClosing ? cb.closing_amount : (cb.expected_amount ?? 0)
+				return reactive({
+					...cb,
+					closing_amount: defaultClosing,
+					difference: 0,
+				})
+			})
+			data.currency_closing_balances.forEach((cb) => {
+				calculateCurrencyDifference(cb)
+			})
+		}
+
 		closingData.value = data
 
 		// Auto-expand invoice details if there are few invoices
@@ -831,23 +1012,46 @@ function calculateDifference(payment) {
 	payment.difference = closing - expected
 }
 
+function calculateCurrencyDifference(cb) {
+	const closing = Number.parseFloat(cb.closing_amount) || 0
+	const expected = Number.parseFloat(cb.expected_amount) || 0
+	cb.difference = closing - expected
+	cb.net_exchange = (Number.parseFloat(cb.receipts) || 0) - (Number.parseFloat(cb.payments) || 0)
+}
+
 // New function to handle closing amount updates with proper reactivity
 function updateClosingAmount(payment, value) {
 	payment.closing_amount = value
 	calculateDifference(payment)
 }
 
+function updateCurrencyClosingAmount(cb, value) {
+	cb.closing_amount = value
+	calculateCurrencyDifference(cb)
+}
+
 const canSubmit = computed(() => {
 	if (!closingData.value || !closingData.value.payment_reconciliation)
 		return false
 
-	// Check if all closing amounts are filled
-	return closingData.value.payment_reconciliation.every(
+	// Check if all payment closing amounts are filled
+	const paymentsOk = closingData.value.payment_reconciliation.every(
 		(payment) =>
 			payment.closing_amount !== null &&
 			payment.closing_amount !== undefined &&
 			payment.closing_amount !== "",
 	)
+
+	// Check if all currency closing amounts are filled (if present)
+	const currencies = closingData.value.currency_closing_balances || []
+	const currenciesOk = currencies.every(
+		(cb) =>
+			cb.closing_amount !== null &&
+			cb.closing_amount !== undefined &&
+			cb.closing_amount !== "",
+	)
+
+	return paymentsOk && currenciesOk
 })
 
 async function submitClosing() {
@@ -860,6 +1064,11 @@ async function submitClosing() {
 		if (closingData.value.payment_reconciliation) {
 			closingData.value.payment_reconciliation.forEach((payment) => {
 				calculateDifference(payment)
+			})
+		}
+		if (closingData.value.currency_closing_balances) {
+			closingData.value.currency_closing_balances.forEach((cb) => {
+				calculateCurrencyDifference(cb)
 			})
 		}
 
@@ -933,13 +1142,13 @@ const hasReturns = computed(() => {
 const customerPayments = computed(() => {
 	if (!closingData.value) return []
 	const payments = closingData.value.pos_payments || []
-	return payments.filter(p => (p.payment_type || 'Receive') === 'Receive')
+	return payments.filter(p => (p.party_type || 'Customer') === 'Customer')
 })
 
 const supplierPayments = computed(() => {
 	if (!closingData.value) return []
 	const payments = closingData.value.pos_payments || []
-	return payments.filter(p => p.payment_type === 'Pay')
+	return payments.filter(p => p.party_type === 'Supplier')
 })
 
 const hasCustomerPayments = computed(() => customerPayments.value.length > 0)
@@ -999,6 +1208,30 @@ const getTotalActual = computed(() => {
 
 const getTotalDifference = computed(() => {
 	return getTotalActual.value - getTotalExpected.value
+})
+
+// Currency Exchange Operations
+const currencyExchangeOperations = computed(() => {
+	if (!closingData.value) return []
+	return closingData.value.currency_exchange_operations || []
+})
+
+const hasCurrencyExchangeOperations = computed(() => currencyExchangeOperations.value.length > 0)
+
+const currencyExchangeCount = computed(() => currencyExchangeOperations.value.length)
+
+const totalSourceExchanged = computed(() => {
+	return currencyExchangeOperations.value.reduce((sum, op) => {
+		const amt = Number.parseFloat(op.source_amount || 0)
+		return op.transaction_type === 'Sell' ? sum - amt : sum + amt
+	}, 0)
+})
+
+const totalTargetExchanged = computed(() => {
+	return currencyExchangeOperations.value.reduce((sum, op) => {
+		const amt = Number.parseFloat(op.target_amount || 0)
+		return op.transaction_type === 'Sell' ? sum + amt : sum - amt
+	}, 0)
 })
 
 function getSalesForPayment(payment) {

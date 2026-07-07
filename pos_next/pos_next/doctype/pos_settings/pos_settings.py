@@ -19,6 +19,7 @@ class POSSettings(Document):
 		allow_credit_sale: DF.Check
 		allow_customer_payment: DF.Check
 		allow_customer_purchase_order: DF.Check
+		allow_supplier_payment: DF.Check
 		allow_delete_offline_invoice: DF.Check
 		allow_duplicate_customer_names: DF.Check
 		allow_free_batch_return: DF.Check
@@ -63,6 +64,8 @@ class POSSettings(Document):
 		use_limit_search: DF.Check
 		use_percentage_discount: DF.Check
 		wallet_account: DF.Link | None
+		enable_currency_exchange: DF.Check
+		currency_setup: DF.Table
 	# end: auto-generated types
 
 	def validate(self):
@@ -77,6 +80,50 @@ class POSSettings(Document):
 			search_limit = cint(self.search_limit)
 			if search_limit <= 0:
 				frappe.throw("Search Limit must be greater than 0")
+
+		# Validate currency exchange settings
+		self.validate_currency_setup()
+
+	def validate_currency_setup(self):
+		"""Validate currency setup table"""
+		if not self.enable_currency_exchange:
+			return
+
+		currencies = []
+		for row in self.currency_setup or []:
+			# Check currency is selected
+			if not row.currency:
+				frappe.throw(f"Row #{row.idx}: Currency is required")
+			if not row.cash_account:
+				frappe.throw(f"Row #{row.idx}: Cash Account is required")
+			if not row.company:
+				frappe.throw(f"Row #{row.idx}: Company is required")
+
+			# Check for duplicate currency per company
+			key = f"{row.currency}-{row.company}"
+			if key in currencies:
+				frappe.throw(
+					f"Row #{row.idx}: Duplicate currency {row.currency} for company {row.company}"
+				)
+			currencies.append(key)
+
+			# Validate account company matches
+			account_company = frappe.db.get_value("Account", row.cash_account, "company")
+			if account_company != row.company:
+				frappe.throw(
+					f"Row #{row.idx}: Account {row.cash_account} does not belong to company {row.company}"
+				)
+
+			# Validate account currency matches
+			account_currency = frappe.db.get_value("Account", row.cash_account, "account_currency")
+			if account_currency and account_currency != row.currency:
+				frappe.throw(
+					f"Row #{row.idx}: Account currency ({account_currency}) does not match selected currency ({row.currency})"
+				)
+
+		# Require at least 2 currencies
+		if len(currencies) < 2:
+			frappe.throw("At least 2 currencies must be configured for currency exchange")
 
 	def on_update(self):
 		"""Sync allow_negative_stock with Stock Settings"""
@@ -128,7 +175,7 @@ class POSSettings(Document):
 
 
 @frappe.whitelist()
-def get_pos_settings(pos_profile):
+def get_pos_settings(pos_profile=None):
 	"""
 	Get POS Settings for a specific POS Profile.
 
@@ -167,14 +214,28 @@ def get_pos_settings(pos_profile):
 		frappe.db.get_single_value("Stock Settings", "allow_negative_stock") or 0
 	)
 
-	# Inject allow_customer_payment from POS Profile (per-profile setting)
-	# This controls the visibility of the customer payment button in the POS UI
+	# Inject allow_customer_payment and allow_supplier_payment from POS Profile (per-profile settings)
+	# These control the visibility of the customer/supplier payment buttons in the POS UI
 	try:
 		pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
 		settings["allow_customer_payment"] = cint(pos_profile_doc.allow_customer_payment or 0)
+		settings["allow_supplier_payment"] = cint(pos_profile_doc.allow_supplier_payment or 0)
 	except Exception:
 		# If POS Profile doesn't exist or field doesn't exist, default to 0
 		settings["allow_customer_payment"] = 0
+		settings["allow_supplier_payment"] = 0
+
+	# Inject currency_setup for enabled currency exchange
+	if cint(settings.get("enable_currency_exchange")):
+		settings_doc = frappe.get_doc("POS Settings", settings["name"])
+		settings["currency_setup"] = [
+			{
+				"currency": row.currency,
+				"cash_account": row.cash_account,
+				"company": row.company,
+			}
+			for row in settings_doc.currency_setup
+		]
 
 	return settings
 

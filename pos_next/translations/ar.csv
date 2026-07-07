@@ -1517,5 +1517,7 @@
 "Supplier","المورد",""
 "{0} payments • {1}","{0} دفعات • {1}",""
 "Allow Customer Payment","السماح بدفع العميل",""
+"Allow Supplier Payment","السماح بدفع المورد",""
+"Show supplier payment button and dialog in POS to accept payments to suppliers","إظهار زر وواجهة دفع المورد في نقطة البيع لقبول الدفعات للموردين",""
 "Pay Credit Card","دفع بطاقة بنكية",""
 "Print Report","طباعة التقرير",""

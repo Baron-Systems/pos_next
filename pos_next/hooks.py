@@ -100,7 +100,21 @@ fixtures = [
 					"POS Profile-posa_cash_mode_of_payment",
 					"POS Profile-posa_allow_delete",
 					"POS Profile-posa_block_sale_beyond_available_qty",
-					"Mode of Payment-is_wallet_payment"
+					"Mode of Payment-is_wallet_payment",
+					"POS Profile-posa_allowed_price_lists",
+					"POS Profile-allow_supplier_payment"
+				]
+			]
+		]
+	},
+	{
+		"dt": "Property Setter",
+		"filters": [
+			[
+				"name",
+				"in",
+				[
+					"POS Profile-selling_price_list-hidden"
 				]
 			]
 		]
@@ -218,6 +232,7 @@ doc_events = {
 		"after_insert": "pos_next.realtime_events.emit_invoice_created_event"
 	},
 	"POS Profile": {
+		"validate": "pos_next.validations.validate_pos_profile",
 		"on_update": "pos_next.realtime_events.emit_pos_profile_updated_event"
 	}
 }

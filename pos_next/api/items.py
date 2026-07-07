@@ -25,6 +25,8 @@ ITEM_RESULT_FIELDS = [
 	"has_variants",
 	"custom_company",
 	"disabled",
+	"valuation_rate",
+	"last_purchase_rate",
 ]
 
 ITEM_RESULT_COLUMNS = ",\n\t".join(ITEM_RESULT_FIELDS)
@@ -354,7 +356,7 @@ def _parse_scale_barcode(barcode):
 
 
 @frappe.whitelist()
-def search_by_barcode(barcode, pos_profile):
+def search_by_barcode(barcode, pos_profile, price_list=None):
 	"""Search item by barcode. Supports standard barcodes and RLS1100C scale barcodes (EAN-13 with weight)."""
 	try:
 		# Parse pos_profile if it's a JSON string
@@ -412,11 +414,12 @@ def search_by_barcode(barcode, pos_profile):
 
 		# Get POS Profile details
 		pos_profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
+		selected_price_list = price_list or pos_profile_doc.selling_price_list
 
 		# Validate POS Profile has required fields
 		if not pos_profile_doc.warehouse:
 			frappe.throw(_("Warehouse not set in POS Profile {0}").format(pos_profile))
-		if not pos_profile_doc.selling_price_list:
+		if not selected_price_list:
 			frappe.throw(_("Selling Price List not set in POS Profile {0}").format(pos_profile))
 		if not pos_profile_doc.company:
 			frappe.throw(_("Company not set in POS Profile {0}").format(pos_profile))
@@ -445,7 +448,7 @@ def search_by_barcode(barcode, pos_profile):
 		item_details = get_item_detail(
 			item=json.dumps(item),
 			warehouse=pos_profile_doc.warehouse,
-			price_list=pos_profile_doc.selling_price_list,
+			price_list=selected_price_list,
 			company=pos_profile_doc.company,
 		)
 
@@ -543,10 +546,11 @@ def get_batch_serial_details(item_code, warehouse):
 
 
 @frappe.whitelist()
-def get_item_variants(template_item, pos_profile):
+def get_item_variants(template_item, pos_profile, price_list=None):
 	"""Get all variants for a template item with prices and stock"""
 	try:
 		pos_profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
+		selected_price_list = price_list or pos_profile_doc.selling_price_list
 
 		# Get all variants of this template using Query Builder for Frappe 16 compatibility
 		# Apply company filter: show variants for specific company + global variants (empty company)
@@ -617,7 +621,7 @@ def get_item_variants(template_item, pos_profile):
 				WHERE item_code IN %s AND price_list = %s
 				ORDER BY item_code, uom
 				""",
-				[variant_codes, pos_profile_doc.selling_price_list],
+				[variant_codes, selected_price_list],
 				as_dict=1,
 			)
 			for price in prices:
@@ -1028,10 +1032,11 @@ def _get_bundle_warehouse_availability_bulk(bundle_codes, warehouses):
 
 
 @frappe.whitelist()
-def get_items(pos_profile, search_term=None, item_group=None, start=0, limit=20):
+def get_items(pos_profile, search_term=None, item_group=None, start=0, limit=20, price_list=None):
 	"""Get items for POS with stock, price, and tax details"""
 	try:
 		pos_profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
+		selected_price_list = price_list or pos_profile_doc.selling_price_list
 
 		# IMPORTANT: Filtering logic explained:
 		# - Template items (has_variants=1) are shown → users select variants via dialog
@@ -1102,6 +1107,8 @@ def get_items(pos_profile, search_term=None, item_group=None, start=0, limit=20)
 					Item.has_variants,
 					Item.custom_company,
 					Item.disabled,
+					Item.valuation_rate,
+					Item.last_purchase_rate,
 				)
 				.where(Item.disabled == 0)
 				.where(Item.is_sales_item == 1)
@@ -1167,7 +1174,7 @@ def get_items(pos_profile, search_term=None, item_group=None, start=0, limit=20)
 				WHERE item_code IN %s AND price_list = %s
 				ORDER BY item_code, uom
 				""",
-				[item_codes, pos_profile_doc.selling_price_list],
+				[item_codes, selected_price_list],
 				as_dict=1,
 			)
 			for price in prices:
@@ -1253,7 +1260,7 @@ def get_items(pos_profile, search_term=None, item_group=None, start=0, limit=20)
 					AND ip.price_list = %s
 					AND i.disabled = 0
 					""",
-					[item["item_code"], pos_profile_doc.selling_price_list],
+					[item["item_code"], selected_price_list],
 					as_dict=1,
 				)
 				derived_price = (
@@ -1354,7 +1361,7 @@ def get_items(pos_profile, search_term=None, item_group=None, start=0, limit=20)
 
 
 @frappe.whitelist()
-def get_item_details(item_code, pos_profile, customer=None, qty=1, uom=None):  # noqa: ARG001 - customer reserved for future use
+def get_item_details(item_code, pos_profile, customer=None, qty=1, uom=None, price_list=None):  # noqa: ARG001 - customer reserved for future use
 	"""Get detailed item info including price, tax, stock"""
 	try:
 		# Parse pos_profile if it's a JSON string
@@ -1372,6 +1379,7 @@ def get_item_details(item_code, pos_profile, customer=None, qty=1, uom=None):  #
 			frappe.throw(_("POS Profile is required"))
 
 		pos_profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
+		selected_price_list = price_list or pos_profile_doc.selling_price_list
 		item_doc = frappe.get_cached_doc("Item", item_code)
 
 		# Check if item is allowed for sales
@@ -1395,7 +1403,7 @@ def get_item_details(item_code, pos_profile, customer=None, qty=1, uom=None):  #
 		return get_item_detail(
 			item=json.dumps(item),
 			warehouse=pos_profile_doc.warehouse,
-			price_list=pos_profile_doc.selling_price_list,
+			price_list=selected_price_list,
 			company=pos_profile_doc.company,
 		)
 	except Exception as e:

@@ -66,6 +66,14 @@ class POSClosingShift(Document):
                 title=_("Invalid Opening Entry"),
             )
         self.update_payment_reconciliation()
+        self.update_currency_closing_balances()
+
+    def update_currency_closing_balances(self):
+        """Update difference values in Currency Closing Balances child table."""
+        precision = frappe.get_cached_value("System Settings", None, "currency_precision") or 3
+        for d in self.get("currency_closing_balances", []):
+            d.difference = flt(d.closing_amount or 0, precision) - flt(d.expected_amount or 0, precision)
+            d.net_exchange = flt(d.receipts or 0, precision) - flt(d.payments or 0, precision)
 
     def update_payment_reconciliation(self):
         # update the difference values in Payment Reconciliation child table
@@ -274,6 +282,10 @@ class POSClosingShift(Document):
             )
             base_amount = flt(payment_doc.get("base_paid_amount") or 0)
             paid_amount = flt(payment_doc.get("paid_amount") or 0)
+            # Pay (outflow) should reduce cash; Receive (inflow) should increase cash
+            if payment_doc.payment_type == "Pay":
+                base_amount = -base_amount
+                paid_amount = -paid_amount
             mode_of_payment = row.get("mode_of_payment") or payment_doc.get("mode_of_payment")
 
             update_payment_breakdown(mode_of_payment, base_amount, currency, paid_amount)
@@ -416,6 +428,7 @@ def get_payments_entries(pos_opening_shift):
             "reference_no",
             "posting_date",
             "party",
+            "party_type",
             "payment_type",
         ],
     )
@@ -500,6 +513,109 @@ def _process_invoice(invoice, invoice_field, company_currency, cash_mode, paymen
     return transaction
 
 
+def _get_currency_exchange_operations(opening_shift_name):
+    """Get POS Currency Exchange transactions for the opening shift."""
+    if not opening_shift_name:
+        return []
+
+    exchanges = frappe.get_all(
+        "POS Currency Exchange",
+        filters={
+            "pos_opening_shift": opening_shift_name,
+            "docstatus": 1,
+        },
+        fields=[
+            "name",
+            "posting_date",
+            "posting_time",
+            "source_currency",
+            "source_amount",
+            "target_currency",
+            "target_amount",
+            "exchange_rate",
+            "status",
+            "transaction_type",
+        ],
+        order_by="posting_date desc, posting_time desc",
+    )
+    return exchanges
+
+
+def _build_currency_closing_balances(opening_shift, company_currency=None):
+    """Build currency closing balances from opening shift currency balances and exchange transactions."""
+    currency_balances = {}
+
+    # 1. Seed from opening shift currency balances
+    for detail in opening_shift.get("currency_opening_balances", []):
+        currency = detail.get("currency")
+        account = detail.get("account")
+        opening_amount = flt(detail.get("opening_amount"))
+        currency_balances[currency] = {
+            "currency": currency,
+            "account": account,
+            "opening_amount": opening_amount,
+            "receipts": 0,
+            "payments": 0,
+            "net_exchange": 0,
+            "expected_amount": opening_amount,
+            "closing_amount": None,
+            "difference": 0,
+        }
+
+    # 1b. Ensure company currency is always tracked (even if not in currency_opening_balances)
+    # so that exchange transactions affecting it are properly recorded
+    if company_currency and company_currency not in currency_balances:
+        currency_balances[company_currency] = {
+            "currency": company_currency,
+            "account": "",
+            "opening_amount": 0,
+            "receipts": 0,
+            "payments": 0,
+            "net_exchange": 0,
+            "expected_amount": 0,
+            "closing_amount": None,
+            "difference": 0,
+        }
+
+    # 2. Aggregate POS Currency Exchange transactions for this shift
+    opening_shift_name = opening_shift.get("name")
+    if opening_shift_name:
+        exchanges = frappe.get_all(
+            "POS Currency Exchange",
+            filters={
+                "pos_opening_shift": opening_shift_name,
+                "docstatus": 1,
+            },
+            fields=["source_currency", "source_amount", "target_currency", "target_amount", "transaction_type"],
+        )
+        for ex in exchanges:
+            transaction_type = ex.get("transaction_type") or "Buy"
+            src = ex.get("source_currency")
+            tgt = ex.get("target_currency")
+            src_amt = flt(ex.get("source_amount"))
+            tgt_amt = flt(ex.get("target_amount"))
+
+            if transaction_type == "Sell":
+                # Sell: we give away source currency, receive target currency
+                if src in currency_balances:
+                    currency_balances[src]["payments"] += src_amt
+                if tgt in currency_balances:
+                    currency_balances[tgt]["receipts"] += tgt_amt
+            else:
+                # Buy: we receive source currency, give away target currency
+                if src in currency_balances:
+                    currency_balances[src]["receipts"] += src_amt
+                if tgt in currency_balances:
+                    currency_balances[tgt]["payments"] += tgt_amt
+
+    # 3. Calculate net_exchange and expected_amount for each currency
+    for cb in currency_balances.values():
+        cb["net_exchange"] = cb["receipts"] - cb["payments"]
+        cb["expected_amount"] = cb["opening_amount"] + cb["net_exchange"]
+
+    return list(currency_balances.values())
+
+
 @frappe.whitelist()
 def make_closing_shift_from_opening(opening_shift):
     opening_shift = json.loads(opening_shift)
@@ -552,18 +668,22 @@ def make_closing_shift_from_opening(opening_shift):
     # Process payment entries
     pos_payments_table = []
     for py in get_payments_entries(opening_shift.get("name")):
-        # Determine party type based on payment_type
-        party_type = "Customer" if py.payment_type == "Receive" else "Supplier"
+        # Use the actual party_type from Payment Entry (Customer/Supplier/Employee...)
+        party_type = py.party_type or ("Customer" if py.payment_type == "Receive" else "Supplier")
+        # Pay (outflow) should be negative; Receive (inflow) should be positive
+        signed_amount = flt(py.paid_amount) * (1 if py.payment_type == "Receive" else -1)
         pos_payments_table.append(frappe._dict({
             "payment_entry": py.name,
             "mode_of_payment": py.mode_of_payment,
-            "paid_amount": py.paid_amount,
+            "paid_amount": signed_amount,
             "posting_date": py.posting_date,
             "customer": py.party,
             "payment_type": py.payment_type,
             "party_type": party_type,
         }))
         amount = get_base_value(py, "paid_amount", "base_paid_amount")
+        if py.payment_type == "Pay":
+            amount = -amount
         _aggregate_payment(payments, py.mode_of_payment, amount)
 
     # Update closing shift with totals
@@ -571,7 +691,25 @@ def make_closing_shift_from_opening(opening_shift):
     closing_shift.net_total = summary["net_total"]
     closing_shift.total_quantity = summary["total_quantity"]
 
-    # Set child tables (without return info - that's for display only)
+    # Build currency closing balances (before setting child tables so we can adjust payments)
+    currency_closing_balances = _build_currency_closing_balances(opening_shift, company_currency)
+
+    # Company currency cash is the same as the main cash box
+    # Merge company currency net exchange into cash payment reconciliation
+    # and remove company currency from currency reconciliation
+    if company_currency:
+        company_cb = next((cb for cb in currency_closing_balances if cb["currency"] == company_currency), None)
+        if company_cb:
+            company_net_exchange = flt(company_cb.get("net_exchange", 0))
+            if company_net_exchange != 0:
+                for pay in payments:
+                    if pay.mode_of_payment == cash_mode:
+                        pay.expected_amount = flt(pay.expected_amount) + company_net_exchange
+                        break
+        # Remove company currency from currency reconciliation
+        currency_closing_balances = [cb for cb in currency_closing_balances if cb["currency"] != company_currency]
+
+    # Set child tables (must be AFTER payment adjustments so modified values are captured)
     closing_shift.set("pos_transactions", [
         {k: v for k, v in txn.items() if k not in ("is_return", "return_against")}
         for txn in pos_transactions
@@ -579,6 +717,7 @@ def make_closing_shift_from_opening(opening_shift):
     closing_shift.set("payment_reconciliation", payments)
     closing_shift.set("taxes", taxes)
     closing_shift.set("pos_payments", pos_payments_table)
+    closing_shift.set("currency_closing_balances", currency_closing_balances)
 
     # Build response with display-only fields
     result = closing_shift.as_dict()
@@ -587,13 +726,18 @@ def make_closing_shift_from_opening(opening_shift):
         entry = next((py for py in get_payments_entries(opening_shift.get("name")) if py.name == p.get("payment_entry")), None)
         if entry:
             p["payment_type"] = entry.payment_type
-            p["party_type"] = "Customer" if entry.payment_type == "Receive" else "Supplier"
+            # party_type already correctly set in pos_payments_table above
+
+    # Get currency exchange operations for display
+    currency_exchange_operations = _get_currency_exchange_operations(opening_shift.get("name"))
+
     result.update({
         "returns_total": summary["returns_total"],
         "returns_count": summary["returns_count"],
         "sales_total": summary["sales_total"],
         "sales_count": summary["sales_count"],
         "pos_transactions": pos_transactions,  # Include return info for display
+        "currency_exchange_operations": currency_exchange_operations,
     })
 
     return result

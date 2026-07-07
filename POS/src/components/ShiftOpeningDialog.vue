@@ -93,6 +93,35 @@
             </div>
           </div>
 
+          <div v-if="hasCurrencySetup" class="mt-4">
+            <label class="block text-sm font-medium text-gray-700 mb-3 text-start">
+              {{ __('Currency Opening Balances') }}
+            </label>
+            <div class="flex flex-col gap-3">
+              <div
+                v-for="cs in currencySetup"
+                :key="cs.currency"
+                class="flex items-center gap-3 p-3 border rounded-lg"
+              >
+                <div class="flex-1 text-start">
+                  <label class="text-sm font-medium text-gray-700">
+                    {{ cs.currency }}
+                  </label>
+                  <p class="text-xs text-gray-500">{{ cs.cash_account }}</p>
+                </div>
+                <div class="w-32">
+                  <Input
+                    v-model="currencyOpeningBalances[cs.currency]"
+                    type="number"
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div v-if="dialogDataResource.error" class="rounded-md bg-red-50 p-4">
             <p class="text-sm text-red-800">{{ dialogDataResource.error }}</p>
           </div>
@@ -216,6 +245,7 @@ const { formatDateTime } = useFormatters()
 const step = ref(1)
 const selectedProfile = ref(null)
 const openingBalances = ref({})
+const currencyOpeningBalances = ref({})
 const existingShift = ref(null)
 const showClosingDialog = ref(false)
 const closingExistingShift = ref(false)
@@ -244,6 +274,16 @@ const paymentMethods = computed(() => {
 		(method) => method.parent === selectedProfile.value.name,
 	)
 })
+
+// Computed currency setup for selected profile
+const currencySetup = computed(() => {
+	if (!dialogDataResource.data || !selectedProfile.value) return []
+
+	const setups = dialogDataResource.data.profile_currency_setups || {}
+	return setups[selectedProfile.value.name] || []
+})
+
+const hasCurrencySetup = computed(() => currencySetup.value.length > 0)
 
 // Watch dialog open state
 // Use { immediate: true } to ensure initDialog runs even when
@@ -294,6 +334,7 @@ function resetDialog() {
 	step.value = 1
 	selectedProfile.value = null
 	openingBalances.value = {}
+	currencyOpeningBalances.value = {}
 	existingShift.value = null
 	profilesResource.reset()
 	dialogDataResource.reset()
@@ -322,11 +363,21 @@ async function openShift() {
 		),
 	}))
 
+	// Prepare currency opening balances
+	const currency_opening_balances = currencySetup.value.map((cs) => ({
+		currency: cs.currency,
+		account: cs.cash_account,
+		opening_amount: Number.parseFloat(
+			currencyOpeningBalances.value[cs.currency] || 0,
+		),
+	}))
+
 	try {
 		await createShiftResource.submit({
 			pos_profile: selectedProfile.value.name,
 			company: selectedProfile.value.company,
 			balance_details,
+			currency_opening_balances: currency_opening_balances.length > 0 ? currency_opening_balances : null,
 		})
 
 		emit("shift-opened")

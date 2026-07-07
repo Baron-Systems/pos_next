@@ -452,6 +452,10 @@ def update_invoice(data):
                     invoice_doc.company = pos_profile_doc.company
                 if pos_profile_doc.currency and not invoice_doc.get("currency"):
                     invoice_doc.currency = pos_profile_doc.currency
+                if not invoice_doc.get("selling_price_list"):
+                    invoice_doc.selling_price_list = (
+                        data.get("price_list") or pos_profile_doc.selling_price_list
+                    )
 
                 # Copy accounting dimensions from POS Profile
                 if hasattr(pos_profile_doc, "branch") and pos_profile_doc.branch:
@@ -2028,6 +2032,7 @@ def apply_offers(invoice_data, selected_offers=None):
                 "plc_conversion_rate": flt(invoice.get("plc_conversion_rate") or 1)
                 or 1,
                 "price_list": invoice.get("price_list")
+                or invoice.get("selling_price_list")
                 or profile.get("selling_price_list"),
                 "customer": customer,
                 "customer_group": customer_group,
