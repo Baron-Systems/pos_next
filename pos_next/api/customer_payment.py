@@ -313,7 +313,7 @@ def create_customer_payment(customer, company, amount, mode_of_payment="Cash", p
                     refs_to_remove.append(ref)
                     continue
 
-                if flt(ref.allocated_amount) > 0 and flt(ref.allocated_amount) > flt(latest.outstanding_amount) + 0.01:
+                if flt(ref.allocated_amount) > 0 and flt(ref.allocated_amount) > flt(latest.outstanding_amount):
                     ref.allocated_amount = flt(latest.outstanding_amount)
                     ref.outstanding_amount = flt(latest.outstanding_amount)
 
