@@ -7,6 +7,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, nowdate
 from erpnext.accounts.utils import get_outstanding_invoices as erpnext_get_outstanding_invoices
+from erpnext.accounts.doctype.payment_entry.payment_entry import get_outstanding_reference_documents
 
 
 @frappe.whitelist()
@@ -269,35 +270,58 @@ def create_customer_payment(customer, company, amount, mode_of_payment="Cash", p
 
     # Validate outstanding amounts are still current before inserting
     # to prevent "allocated amount > outstanding amount" errors.
-    # Use PLE-based outstanding (same as Payment Entry validation) instead of
-    # Sales Invoice.outstanding_amount field, which can drift out of sync.
-    if payment_type == "Receive":
+    # Use get_outstanding_reference_documents (exactly what PaymentEntry.validate uses)
+    # so payment terms are handled correctly and amounts stay in sync.
+    if payment_type == "Receive" and pe.get("references"):
         refs_to_remove = []
-        vouchers = [
-            frappe._dict({"voucher_type": ref.reference_doctype, "voucher_no": ref.reference_name})
+        uniq_vouchers = {
+            (ref.reference_doctype, ref.reference_name)
             for ref in pe.get("references", [])
-            if ref.reference_doctype == "Sales Invoice"
+        }
+        vouchers = [
+            frappe._dict({"voucher_type": x[0], "voucher_no": x[1]})
+            for x in uniq_vouchers
         ]
-        ple_lookup = {}
-        if vouchers:
-            ple_outstanding = erpnext_get_outstanding_invoices(
-                party_type="Customer",
-                party=customer,
-                account=[company_doc.default_receivable_account],
-                vouchers=vouchers,
-            )
-            ple_lookup = {d.voucher_no: d.outstanding_amount for d in ple_outstanding}
 
-        for ref in pe.get("references", []):
-            if ref.reference_doctype == "Sales Invoice":
-                current_outstanding = ple_lookup.get(ref.reference_name, 0)
-                if flt(ref.allocated_amount) > flt(current_outstanding) + 0.01:
-                    ref.allocated_amount = flt(current_outstanding)
-                    ref.outstanding_amount = flt(current_outstanding)
+        if vouchers:
+            latest_references = get_outstanding_reference_documents(
+                {
+                    "posting_date": pe.posting_date,
+                    "company": pe.company,
+                    "party_type": pe.party_type,
+                    "payment_type": pe.payment_type,
+                    "party": pe.party,
+                    "party_account": pe.paid_from,
+                    "get_outstanding_invoices": True,
+                    "get_orders_to_be_billed": True,
+                    "vouchers": vouchers,
+                    "book_advance_payments_in_separate_party_account": pe.book_advance_payments_in_separate_party_account,
+                },
+                validate=True,
+            )
+
+            latest_lookup = {}
+            for d in latest_references:
+                d = frappe._dict(d)
+                latest_lookup.setdefault((d.voucher_type, d.voucher_no), frappe._dict())[d.payment_term] = d
+
+            for ref in pe.get("references", []):
+                latest = latest_lookup.get((ref.reference_doctype, ref.reference_name)) or frappe._dict()
+                latest = latest.get(ref.payment_term) or latest.get(None)
+
+                if not latest:
+                    refs_to_remove.append(ref)
+                    continue
+
+                if flt(ref.allocated_amount) > 0 and flt(ref.allocated_amount) > flt(latest.outstanding_amount) + 0.01:
+                    ref.allocated_amount = flt(latest.outstanding_amount)
+                    ref.outstanding_amount = flt(latest.outstanding_amount)
+
                 if flt(ref.allocated_amount) <= 0.01:
                     refs_to_remove.append(ref)
-        for ref in refs_to_remove:
-            pe.references.remove(ref)
+
+            for ref in refs_to_remove:
+                pe.references.remove(ref)
 
     pe.flags.ignore_permissions = True
     pe.insert()

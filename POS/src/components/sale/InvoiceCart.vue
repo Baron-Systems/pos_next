@@ -1481,6 +1481,19 @@ const additionalDiscountType = ref(settingsStore.usePercentageDiscount ? "percen
 const localAdditionalDiscount = ref(0);
 const isAdditionalDiscountInputFocused = ref(false);
 
+// Display subtotal adjusted for tax-inclusive mode.
+const displaySubtotal = computed(() => {
+	if (cartStore.taxInclusive) {
+		return props.subtotal - props.taxAmount;
+	}
+	return props.subtotal;
+});
+
+// Helper: round to 2 decimals
+function round2(val) {
+	return Number(Number(val || 0).toFixed(2));
+}
+
 // Partial payment state
 const partialPaymentAmount = ref("");
 
@@ -1704,29 +1717,6 @@ const totalQuantity = computed(() => {
 });
 
 /**
- * Display subtotal adjusted for tax-inclusive mode.
- *
- * When tax is inclusive, the raw subtotal from the store includes tax.
- * For clear cashier display, we show:
- * - Subtotal: Net amount (before tax) = gross - tax
- * - Tax: The extracted tax amount
- * - Grand Total: gross amount = Subtotal + Tax
- *
- * When tax is exclusive, subtotal is already net (before tax).
- *
- * @returns {Number} Subtotal amount to display (net amount before tax)
- */
-const displaySubtotal = computed(() => {
-	if (cartStore.taxInclusive) {
-		// Tax inclusive: subtotal from store is gross (includes tax)
-		// Display the net amount (before tax) for clarity
-		return props.subtotal - props.taxAmount;
-	}
-	// Tax exclusive: subtotal is already net (before tax)
-	return props.subtotal;
-});
-
-/**
  * Display grand total that visually equals Subtotal + Tax - Discount.
  *
  * This ensures the math is intuitive for cashiers:
@@ -1921,10 +1911,6 @@ function formatCurrency(amount) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Additional Discount (above payment buttons)
 // ─────────────────────────────────────────────────────────────────────────────
-function round2(val) {
-	return Number(Number(val || 0).toFixed(2));
-}
-
 function handleAdditionalDiscountFocus(event) {
 	isAdditionalDiscountInputFocused.value = true;
 	// Auto-select the current value so typing replaces it
