@@ -6,6 +6,7 @@
 import frappe
 from frappe import _
 from frappe.utils import flt, nowdate
+from erpnext.accounts.utils import get_outstanding_invoices as erpnext_get_outstanding_invoices
 
 
 @frappe.whitelist()
@@ -119,9 +120,43 @@ def get_outstanding_invoices(customer, company=None, limit=300):
     filters = {"customer": customer, "docstatus": 1, "outstanding_amount": [">", 0]}
     if company:
         filters["company"] = company
-    return frappe.get_all("Sales Invoice", filters=filters,
-        fields=["name", "posting_date", "due_date", "grand_total", "outstanding_amount", "status", "currency", "customer_name"],
+    invoices = frappe.get_all("Sales Invoice", filters=filters,
+        fields=["name", "company", "posting_date", "due_date", "grand_total", "outstanding_amount", "status", "currency", "customer_name"],
         order_by="posting_date desc", limit=limit)
+
+    if not invoices:
+        return []
+
+    # Resolve company to fetch the receivable account
+    if not company:
+        company = invoices[0].get("company") or \
+            frappe.defaults.get_user_default("Company") or \
+            frappe.db.get_single_value("Global Defaults", "default_company")
+
+    if company:
+        receivable_account = frappe.db.get_value("Company", company, "default_receivable_account")
+        if receivable_account:
+            ple_invoices = erpnext_get_outstanding_invoices(
+                party_type="Customer",
+                party=customer,
+                account=[receivable_account],
+                limit=limit,
+            )
+            ple_lookup = {d.voucher_no: d.outstanding_amount for d in ple_invoices}
+            updated = []
+            for inv in invoices:
+                ple_outstanding = ple_lookup.get(inv.name)
+                if ple_outstanding is not None:
+                    if flt(ple_outstanding) > 0:
+                        inv.outstanding_amount = flt(ple_outstanding)
+                        updated.append(inv)
+                else:
+                    # PLE has no record; keep SI value but ensure it's still > 0
+                    if flt(inv.outstanding_amount) > 0:
+                        updated.append(inv)
+            invoices = updated
+
+    return invoices
 
 
 @frappe.whitelist()
@@ -233,22 +268,34 @@ def create_customer_payment(customer, company, amount, mode_of_payment="Cash", p
         allocated = []
 
     # Validate outstanding amounts are still current before inserting
-    # to prevent "allocated amount > outstanding amount" errors
+    # to prevent "allocated amount > outstanding amount" errors.
+    # Use PLE-based outstanding (same as Payment Entry validation) instead of
+    # Sales Invoice.outstanding_amount field, which can drift out of sync.
     if payment_type == "Receive":
         refs_to_remove = []
+        vouchers = [
+            {"voucher_type": ref.reference_doctype, "voucher_no": ref.reference_name}
+            for ref in pe.get("references", [])
+            if ref.reference_doctype == "Sales Invoice"
+        ]
+        ple_lookup = {}
+        if vouchers:
+            ple_outstanding = erpnext_get_outstanding_invoices(
+                party_type="Customer",
+                party=customer,
+                account=[company_doc.default_receivable_account],
+                vouchers=vouchers,
+            )
+            ple_lookup = {d.voucher_no: d.outstanding_amount for d in ple_outstanding}
+
         for ref in pe.get("references", []):
             if ref.reference_doctype == "Sales Invoice":
-                current_outstanding = frappe.db.get_value(
-                    "Sales Invoice", ref.reference_name, "outstanding_amount"
-                )
+                current_outstanding = ple_lookup.get(ref.reference_name, 0)
                 if flt(ref.allocated_amount) > flt(current_outstanding) + 0.01:
-                    # Adjust to current outstanding amount
                     ref.allocated_amount = flt(current_outstanding)
                     ref.outstanding_amount = flt(current_outstanding)
-                # Mark for removal if fully paid already
                 if flt(ref.allocated_amount) <= 0.01:
                     refs_to_remove.append(ref)
-        # Remove references that are no longer needed
         for ref in refs_to_remove:
             pe.references.remove(ref)
 
