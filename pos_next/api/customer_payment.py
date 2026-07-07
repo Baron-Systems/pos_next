@@ -274,7 +274,7 @@ def create_customer_payment(customer, company, amount, mode_of_payment="Cash", p
     if payment_type == "Receive":
         refs_to_remove = []
         vouchers = [
-            {"voucher_type": ref.reference_doctype, "voucher_no": ref.reference_name}
+            frappe._dict({"voucher_type": ref.reference_doctype, "voucher_no": ref.reference_name})
             for ref in pe.get("references", [])
             if ref.reference_doctype == "Sales Invoice"
         ]
