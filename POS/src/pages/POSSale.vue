@@ -853,6 +853,7 @@
 			<Dialog
 				v-model="uiStore.showSuccessDialog"
 				:options="{ title: __('Invoice Created Successfully'), size: 'md' }"
+				@after-leave="handleRefocusBarcode"
 			>
 				<template #body-content>
 					<div class="text-center py-6">
