@@ -2090,11 +2090,6 @@ async function handlePayLaterAllDebt() {
 		delivery_date: null,
 	};
 	await handlePaymentCompleted(paymentData, { forcePrint: false });
-	// Focus on barcode input after payment
-	nextTick(() => {
-		const barcodeInput = document.getElementById("item-search");
-		if (barcodeInput) barcodeInput.focus();
-	});
 }
 
 async function handlePartialPayment(amount) {
@@ -2142,11 +2137,6 @@ async function handlePartialPayment(amount) {
 		delivery_date: null,
 	};
 	await handlePaymentCompleted(paymentData, { forcePrint: false });
-	// Focus on barcode input after payment
-	nextTick(() => {
-		const barcodeInput = document.getElementById("item-search");
-		if (barcodeInput) barcodeInput.focus();
-	});
 }
 
 async function handleDeleteFailedInvoice() {
@@ -2253,6 +2243,9 @@ async function handlePaymentCompleted(paymentData, options = {}) {
 			}
 
 			showSuccess(__("Invoice saved offline. Will sync when online"));
+			if (!showSuccessDialogEnabled.value) {
+				handleRefocusBarcode();
+			}
 		} else {
 			// Get item codes from cart before clearing
 			const soldItemCodes = cartStore.invoiceItems.map((item) => item.item_code);
@@ -2291,6 +2284,9 @@ async function handlePaymentCompleted(paymentData, options = {}) {
 						uiStore.showSuccess(invoiceName, invoiceTotal, paidAmount);
 					}
 					showSuccess(__("Invoice {0} created successfully", [invoiceName]));
+				}
+				if (!showSuccessDialogEnabled.value || shiftStore.autoPrintEnabled || forcePrint) {
+					handleRefocusBarcode();
 				}
 			}
 		}
