@@ -1,5 +1,5 @@
 <template>
-<Dialog v-model="show" :options="{ title: __('المورد'), size: 'xl' }">
+<Dialog v-model="show" :options="{ title: __('المورد'), size: 'xl' }" @after-leave="() => { console.log('SupplierPaymentDialog after-leave'); $emit('after-leave') }">
 <template #body-content>
 <div class="flex flex-col gap-4 min-h-[500px]">
 <!-- Supplier Selection -->
@@ -80,6 +80,7 @@ const emit = defineEmits([
 "create-supplier",
 "edit-supplier",
 "payment-created",
+"after-leave",
 ])
 
 const { showSuccess, showError } = useToast()

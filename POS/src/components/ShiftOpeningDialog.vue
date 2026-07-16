@@ -1,5 +1,5 @@
 <template>
-  <Dialog v-model="open" :options="{ title: __('Open POS Shift'), size: 'xl' }">
+  <Dialog v-model="open" :options="{ title: __('Open POS Shift'), size: 'xl' }" @after-leave="$emit('after-leave')">
     <template #body-content>
       <div class="flex flex-col gap-6">
         <!-- Step 1: Select POS Profile -->
@@ -231,7 +231,7 @@ const props = defineProps({
 	modelValue: Boolean,
 })
 
-const emit = defineEmits(["update:modelValue", "shift-opened", "dialog-closed"])
+const emit = defineEmits(["update:modelValue", "shift-opened", "dialog-closed", "after-leave"])
 
 const open = computed({
 	get: () => props.modelValue,

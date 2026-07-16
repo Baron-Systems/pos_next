@@ -1,5 +1,5 @@
 <template>
-  <Dialog v-model="open" :options="{ title: __('Close POS Shift'), size: '4xl' }">
+  <Dialog v-model="open" :options="{ title: __('Close POS Shift'), size: '4xl' }" @after-leave="$emit('after-leave')">
     <template #body-content>
       <div class="flex flex-col gap-3 md:gap-6">
         <div v-if="closingDataResource.loading" class="text-center py-8 md:py-12">
@@ -71,6 +71,42 @@
             </div>
           </div>
 
+          <!-- Shift Notes -->
+          <div v-if="hasShiftNotes" class="bg-white border border-amber-200 rounded-xl overflow-hidden shadow-sm">
+            <div class="px-4 py-3 md:px-6 md:py-4 bg-amber-50 border-b border-amber-200">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                    <svg class="h-4 w-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 class="text-sm md:text-lg font-semibold text-gray-900">{{ __('ملاحظات الوردية') }}</h3>
+                    <p class="text-xs md:text-sm text-gray-600">{{ __('{0} ملاحظة محفوظة', [shiftNotesCount]) }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="p-4 md:p-6">
+              <div class="flex flex-col gap-3">
+                <div
+                  v-for="(note, idx) in closingData.shift_notes"
+                  :key="idx"
+                  class="bg-amber-50/60 border border-amber-100 rounded-xl p-4"
+                >
+                  <div class="flex items-start gap-3">
+                    <div class="w-2 h-2 rounded-full bg-amber-400 mt-2 flex-shrink-0"></div>
+                    <div class="flex-1">
+                      <h4 class="text-sm md:text-base font-semibold text-gray-900 mb-1">{{ note.title }}</h4>
+                      <p v-if="note.description" class="text-xs md:text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{{ note.description }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Invoice Details (Collapsible) (hidden in entry mode when hideExpectedAmount is enabled) -->
           <div v-if="shouldShowSummary && invoiceCount > 0" class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
             <button
@@ -106,8 +142,8 @@
                       <span :class="['text-xs font-medium', invoice.is_return ? 'text-red-700' : 'text-gray-900']">
                         {{ invoice.pos_invoice || invoice.sales_invoice || __('N/A') }}
                       </span>
-                      <span v-if="invoice.is_return" class="px-1.5 py-0.5 text-xs font-medium bg-red-200 text-red-800 rounded">
-                        {{ __('Return') }}
+                      <span :class="['px-1.5 py-0.5 text-xs font-medium rounded', invoice.is_return ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800']">
+                        {{ (invoice.is_return ? __('Return') : __('Sale')) + ' / ' + __(invoice.payment_status || 'Debt') }}
                       </span>
                     </div>
                     <span :class="['text-sm font-semibold', invoice.is_return ? 'text-red-700' : 'text-gray-900']">
@@ -150,11 +186,8 @@
                         </span>
                       </td>
                       <td class="text-start px-6 py-4 whitespace-nowrap">
-                        <span v-if="invoice.is_return" class="px-2 py-1 text-xs font-medium bg-red-200 text-red-800 rounded">
-                          {{ __('Return') }}
-                        </span>
-                        <span v-else class="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
-                          {{ __('Sale') }}
+                        <span :class="['px-2 py-1 text-xs font-medium rounded', invoice.is_return ? 'bg-red-200 text-red-800' : 'bg-green-100 text-green-800']">
+                          {{ (invoice.is_return ? __('Return') : __('Sale')) + ' / ' + __(invoice.payment_status || 'Debt') }}
                         </span>
                       </td>
                       <td class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-600">
@@ -915,7 +948,7 @@ const props = defineProps({
 	},
 })
 
-const emit = defineEmits(["update:modelValue", "shift-closed"])
+const emit = defineEmits(["update:modelValue", "shift-closed", "after-leave"])
 
 const open = computed({
 	get: () => props.modelValue,
@@ -1137,6 +1170,14 @@ const hasReturns = computed(() => {
 	if (!closingData.value) return false
 	return (closingData.value.returns_count || 0) > 0
 })
+
+// Shift notes
+const shiftNotesCount = computed(() => {
+	if (!closingData.value) return 0
+	return (closingData.value.shift_notes || []).length
+})
+
+const hasShiftNotes = computed(() => shiftNotesCount.value > 0)
 
 // Split payments into customer (Receive) and supplier (Pay)
 const customerPayments = computed(() => {

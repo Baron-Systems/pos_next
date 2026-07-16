@@ -1,5 +1,5 @@
 <template>
-	<Dialog v-model="show" :options="{ size: '3xl' }">
+	<Dialog v-model="show" :options="{ size: '3xl' }" @after-leave="handleAfterLeave">
 		<template #body-title>
 			<h3 class="text-lg font-semibold text-gray-900">{{ __('Stock Lookup') }}</h3>
 		</template>
@@ -515,7 +515,7 @@ const props = defineProps({
 	}
 })
 
-const emit = defineEmits(['update:modelValue', 'close'])
+const emit = defineEmits(['update:modelValue', 'close', 'after-leave'])
 
 // v-model binding for Dialog
 const show = computed({
@@ -527,6 +527,10 @@ const show = computed({
 function closeDialog() {
 	emit('update:modelValue', false)
 	emit('close')
+}
+
+function handleAfterLeave() {
+	emit('after-leave')
 }
 
 // Determine if we're in search mode

@@ -1365,6 +1365,11 @@ defineExpose({
 	loadItems: () => itemStore.loadAllItems(props.posProfile),
 	loadItemGroups: () => itemStore.loadItemGroups(),
 	loadMoreItems: () => itemStore.loadMoreItems(),
+	focusBarcode: () => {
+		const input = barcodeInputRef.value || document.getElementById("item-search")
+		console.log('focusBarcode called, input:', input, 'activeElement:', document.activeElement)
+		if (input) input.focus()
+	},
 })
 
 // Watch for view mode changes and rebind scroll listeners

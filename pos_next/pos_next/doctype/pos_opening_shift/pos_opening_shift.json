@@ -23,6 +23,8 @@
   "currency_balance_details_section",
   "currency_opening_balances",
   "section_break_9",
+  "shift_notes_section",
+  "shift_notes",
   "amended_from"
  ],
  "fields": [
@@ -124,6 +126,18 @@
    "fieldname": "section_break_9",
    "fieldtype": "Section Break",
    "read_only": 1
+  },
+  {
+   "fieldname": "shift_notes_section",
+   "fieldtype": "Section Break",
+   "label": "ملاحظات الوردية"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "shift_notes",
+   "fieldtype": "Table",
+   "label": "ملاحظات الوردية",
+   "options": "POS Shift Note"
   },
   {
    "fieldname": "amended_from",

@@ -3,6 +3,7 @@
 	<Dialog
 		v-model="show"
 		:options="{ title: __('Draft Invoices'), size: 'xl' }"
+		@after-leave="$emit('after-leave')"
 	>
 		<template #body-content>
 			<div class="flex flex-col gap-3">
@@ -220,7 +221,7 @@ const props = defineProps({
 	},
 })
 
-const emit = defineEmits(["update:modelValue", "load-draft", "drafts-updated"])
+const emit = defineEmits(["update:modelValue", "load-draft", "drafts-updated", "after-leave"])
 
 const show = ref(props.modelValue)
 const drafts = ref([])

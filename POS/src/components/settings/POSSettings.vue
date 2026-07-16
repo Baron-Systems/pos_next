@@ -1,13 +1,16 @@
 <template>
 	<!-- Full Page Overlay -->
-	<Transition name="fade">
+	<Transition name="fade" @after-leave="handleAfterLeave">
 		<div
 			v-if="show"
 			class="fixed inset-0 bg-black bg-opacity-50 z-[300]"
 			@click.self="handleClose"
 		>
 			<!-- Main Container -->
-			<div class="fixed inset-0 flex items-center justify-center p-4 md:p-6">
+			<div
+				class="fixed inset-0 flex items-center justify-center p-4 md:p-6"
+				@click.self="handleClose"
+			>
 				<div class="w-full max-w-5xl max-h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col">
 					<!-- Header -->
 					<div class="flex items-center justify-between px-6 py-5 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
@@ -432,7 +435,7 @@ const props = defineProps({
 	currentWarehouse: String,
 })
 
-const emit = defineEmits(["update:modelValue", "warehouse-changed"])
+const emit = defineEmits(["update:modelValue", "warehouse-changed", "after-leave"])
 
 const show = ref(props.modelValue)
 
@@ -585,6 +588,10 @@ watch(
 // Methods
 function handleClose() {
 	show.value = false
+}
+
+function handleAfterLeave() {
+	emit("after-leave")
 }
 
 async function loadSettings() {

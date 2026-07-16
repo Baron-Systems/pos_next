@@ -34,6 +34,8 @@
   "column_break_16",
   "taxes",
   "section_break_14",
+  "shift_notes_section",
+  "shift_notes",
   "amended_from"
  ],
  "fields": [
@@ -184,6 +186,17 @@
   {
    "fieldname": "section_break_14",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "shift_notes_section",
+   "fieldtype": "Section Break",
+   "label": "ملاحظات الوردية"
+  },
+  {
+   "fieldname": "shift_notes",
+   "fieldtype": "Table",
+   "label": "ملاحظات الوردية",
+   "options": "POS Shift Note"
   },
   {
    "fieldname": "amended_from",

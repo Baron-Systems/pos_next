@@ -1,5 +1,5 @@
 <template>
-	<Dialog v-model="show" :options="{ title: isEditMode ? __('Edit Customer') : __('Create New Customer'), size: 'md' }">
+	<Dialog v-model="show" :options="{ title: isEditMode ? __('Edit Customer') : __('Create New Customer'), size: 'md' }" @after-leave="$emit('after-leave')">
 		<template #body-content>
 			<div class="flex flex-col gap-6">
 				<!-- Customer Name (Required) -->
@@ -226,7 +226,7 @@ const props = defineProps({
 	customer: Object, // Customer object for edit mode
 })
 
-const emit = defineEmits(["update:modelValue", "customer-created", "customer-updated"])
+const emit = defineEmits(["update:modelValue", "customer-created", "customer-updated", "after-leave"])
 
 // =============================================================================
 // State

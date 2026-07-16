@@ -239,3 +239,90 @@ def submit_closing_shift(closing_shift):
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "Submit Closing Shift Error")
 		frappe.throw(_("Error submitting closing shift: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def get_shift_notes(opening_shift):
+	"""Get shift notes for an opening shift"""
+	if not opening_shift or not frappe.db.exists("POS Opening Shift", opening_shift):
+		return []
+
+	opening = frappe.get_doc("POS Opening Shift", opening_shift)
+	return [
+		{
+			"name": note.name,
+			"title": note.title,
+			"description": note.description,
+			"idx": note.idx,
+		}
+		for note in opening.get("shift_notes", [])
+	]
+
+
+@frappe.whitelist()
+def add_shift_note(opening_shift, title, description=None):
+	"""Add a new note to an opening shift"""
+	if not opening_shift or not frappe.db.exists("POS Opening Shift", opening_shift):
+		frappe.throw(_("لم يتم العثور على الوردية المفتوحة"))
+
+	if not title:
+		frappe.throw(_("العنوان مطلوب"))
+
+	opening = frappe.get_doc("POS Opening Shift", opening_shift)
+	if opening.status != "Open" or opening.docstatus != 1:
+		frappe.throw(_("لا يمكن إضافة ملاحظات إلى وردية مغلقة أو غير مؤكدة"))
+
+	opening.append("shift_notes", {
+		"title": title,
+		"description": description or "",
+	})
+	opening.save(ignore_permissions=True)
+
+	return {"status": "success", "name": opening.shift_notes[-1].name}
+
+
+@frappe.whitelist()
+def update_shift_note(note_id, title, description=None):
+	"""Update an existing shift note"""
+	if not note_id:
+		frappe.throw(_("معرف الملاحظة مطلوب"))
+
+	parent = frappe.db.get_value("POS Shift Note", note_id, "parent")
+	if not parent or not frappe.db.exists("POS Opening Shift", parent):
+		frappe.throw(_("لم يتم العثور على الملاحظة"))
+
+	opening_doc = frappe.get_doc("POS Opening Shift", parent)
+	if opening_doc.status != "Open" or opening_doc.docstatus != 1:
+		frappe.throw(_("لا يمكن تعديل ملاحظات وردية مغلقة أو غير مؤكدة"))
+
+	for note in opening_doc.get("shift_notes", []):
+		if note.name == note_id:
+			title = (title or "").strip()
+			if not title:
+				frappe.throw(_("العنوان مطلوب"))
+			note.title = title
+			note.description = description or ""
+			opening_doc.save(ignore_permissions=True)
+			return {"status": "success", "name": note_id}
+
+	frappe.throw(_("لم يتم العثور على الملاحظة"))
+
+
+@frappe.whitelist()
+def delete_shift_note(note_id):
+	"""Delete a shift note"""
+	if not note_id:
+		frappe.throw(_("معرف الملاحظة مطلوب"))
+
+	parent = frappe.db.get_value("POS Shift Note", note_id, "parent")
+	if not parent or not frappe.db.exists("POS Opening Shift", parent):
+		frappe.throw(_("لم يتم العثور على الملاحظة"))
+
+	opening_doc = frappe.get_doc("POS Opening Shift", parent)
+	for note in opening_doc.get("shift_notes", []):
+		if note.name == note_id:
+			opening_doc.get("shift_notes").remove(note)
+			opening_doc.save(ignore_permissions=True)
+			return {"status": "success"}
+
+	frappe.throw(_("لم يتم العثور على الملاحظة"))

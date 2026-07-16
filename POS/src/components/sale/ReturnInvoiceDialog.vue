@@ -2,6 +2,7 @@
 	<Dialog
         v-model="show"
         :options="{ title: __('Create Return Invoice'), size: '5xl' }"
+        @after-leave="$emit('after-leave')"
     >
 		<template #body-content>
 			<div class="flex flex-col gap-4">
@@ -747,7 +748,7 @@ const props = defineProps({
 	currency: { type: String, default: "USD" },
 })
 
-const emit = defineEmits(["update:modelValue", "return-created"])
+const emit = defineEmits(["update:modelValue", "return-created", "after-leave"])
 
 // State
 const show = ref(props.modelValue)

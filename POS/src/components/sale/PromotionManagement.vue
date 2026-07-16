@@ -1,6 +1,6 @@
 <template>
 	<!-- Full Page Overlay -->
-	<Transition name="fade">
+	<Transition name="fade" @after-leave="handleAfterLeave">
 		<div
 			v-if="show"
 			class="fixed inset-0 bg-black bg-opacity-50 z-[300]"
@@ -746,7 +746,7 @@ const props = defineProps({
 	},
 })
 
-const emit = defineEmits(["update:modelValue", "promotion-saved"])
+const emit = defineEmits(["update:modelValue", "promotion-saved", "after-leave"])
 
 // Access cached items from the store
 const itemSearchStore = useItemSearchStore()
@@ -1170,6 +1170,10 @@ function loadData() {
 
 function handleClose() {
 	show.value = false
+}
+
+function handleAfterLeave() {
+	emit("after-leave")
 }
 
 function handleCreateNew() {

@@ -466,6 +466,22 @@ def _aggregate_tax(taxes, account_head, rate, amount):
     }))
 
 
+def _get_invoice_payment_status(invoice, tolerance=0.01):
+    """Classify invoice settlement status based on paid/outstanding amounts.
+
+    Returns:
+        str: 'Cash' (fully paid/settled), 'Debt' (unpaid), or 'Partial Payment'.
+    """
+    paid = abs(flt(invoice.get("paid_amount", 0)))
+    outstanding = abs(flt(invoice.get("outstanding_amount", 0)))
+
+    if outstanding <= tolerance:
+        return "Cash"
+    if paid <= tolerance:
+        return "Debt"
+    return "Partial Payment"
+
+
 def _process_invoice(invoice, invoice_field, company_currency, cash_mode, payments, taxes, summary):
     """Process a single invoice and update aggregates."""
     conversion_rate = invoice.get("conversion_rate")
@@ -484,6 +500,7 @@ def _process_invoice(invoice, invoice_field, company_currency, cash_mode, paymen
         "customer": invoice.customer,
         "is_return": is_return,
         "return_against": invoice.get("return_against") if is_return else None,
+        "payment_status": _get_invoice_payment_status(invoice),
     })
 
     # Update summary totals
@@ -718,6 +735,13 @@ def make_closing_shift_from_opening(opening_shift):
     closing_shift.set("taxes", taxes)
     closing_shift.set("pos_payments", pos_payments_table)
     closing_shift.set("currency_closing_balances", currency_closing_balances)
+
+    # Copy shift notes from opening shift to closing shift
+    opening_notes = opening_shift.get("shift_notes", []) or []
+    closing_shift.set("shift_notes", [
+        {"title": note.get("title"), "description": note.get("description", "")}
+        for note in opening_notes
+    ])
 
     # Build response with display-only fields
     result = closing_shift.as_dict()

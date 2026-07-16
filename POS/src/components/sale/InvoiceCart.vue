@@ -211,7 +211,7 @@
 								:value="customerSearch"
 								@input="handleSearchInput"
 								@focus="handleSearchFocus"
-								@blur="handleSearchBlur"
+								@blur="handleSearchBlur($event)"
 								type="text"
 								:placeholder="__('Search or add customer...')"
 								class="w-full h-10 ps-9 pe-3 text-xs border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-shadow"
@@ -798,27 +798,6 @@
 										{{ __("Return") }}
 									</span>
 								</div>
-								<button
-									type="button"
-									@click.stop="$emit('remove-item', item.item_code, item.uom)"
-									class="text-gray-400 hover:text-red-600 active:text-red-700 transition-colors flex-shrink-0 p-0.5 -m-0.5 touch-manipulation active:scale-90"
-									:aria-label="__('Remove {0}', [item.item_name])"
-									:title="__('Remove item')"
-								>
-									<svg
-										class="h-4 w-4"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M6 18L18 6M6 6l12 12"
-										/>
-									</svg>
-								</button>
 							</div>
 
 							<!-- Single Row: Quantity Counter, UOM, Price & Total -->
@@ -863,12 +842,12 @@
 										<button
 											type="button"
 											@click="decrementQuantity(item)"
-											class="w-6 h-6 sm:w-7 sm:h-7 bg-white hover:bg-gray-100 active:bg-gray-200 flex items-center justify-center font-bold text-gray-700 transition-colors touch-manipulation border-e border-gray-200"
+											class="w-10 h-8 sm:w-12 sm:h-9 bg-white hover:bg-gray-100 active:bg-gray-200 flex items-center justify-center font-bold text-gray-700 transition-colors touch-manipulation border-e border-gray-200"
 											:aria-label="__('Decrease quantity')"
 											:title="__('Decrease quantity')"
 										>
 											<svg
-												class="w-3 h-3"
+												class="w-5 h-5"
 												fill="none"
 												stroke="currentColor"
 												viewBox="0 0 24 24"
@@ -884,23 +863,24 @@
 										<input
 											:value="formatQuantity(item.quantity)"
 											@input="updateQuantity(item, $event.target.value)"
+											@focus="$event.target.select()"
 											@blur="handleQuantityBlur(item)"
 											@keydown.enter="$event.target.blur()"
 											type="text"
 											inputmode="decimal"
-											class="w-14 sm:w-16 h-6 sm:h-7 text-center bg-white border-0 text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+											class="w-14 sm:w-16 h-8 sm:h-9 text-center bg-white border-0 text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
 											:class="item.quantity < 0 ? 'text-red-600' : 'text-gray-900'"
 											:aria-label="__('Quantity')"
 										/>
 										<button
 											type="button"
 											@click="incrementQuantity(item)"
-											class="w-6 h-6 sm:w-7 sm:h-7 bg-white hover:bg-gray-100 active:bg-gray-200 flex items-center justify-center font-bold text-gray-700 transition-colors touch-manipulation border-s border-gray-200"
+											class="w-10 h-8 sm:w-12 sm:h-9 bg-white hover:bg-gray-100 active:bg-gray-200 flex items-center justify-center font-bold text-gray-700 transition-colors touch-manipulation border-s border-gray-200"
 											:aria-label="__('Increase quantity')"
 											:title="__('Increase quantity')"
 										>
 											<svg
-												class="w-3 h-3"
+												class="w-5 h-5"
 												fill="none"
 												stroke="currentColor"
 												viewBox="0 0 24 24"
@@ -1006,18 +986,41 @@
 									</span>
 								</div>
 
-								<!-- Item Total -->
-								<div class="text-end flex-shrink-0">
-									<div
-										class="text-xs sm:text-sm font-bold leading-none"
-										:class="(item.amount || item.rate * item.quantity) < 0 ? 'text-red-600' : 'text-blue-600'"
-									>
-										{{
-											formatCurrency(
-												item.amount || item.rate * item.quantity
-											)
-										}}
+								<div class="flex items-center gap-1">
+									<!-- Item Total -->
+									<div class="text-end flex-shrink-0">
+										<div
+											class="text-xs sm:text-sm font-bold leading-none"
+											:class="(item.amount || item.rate * item.quantity) < 0 ? 'text-red-600' : 'text-blue-600'"
+										>
+											{{
+												formatCurrency(
+													item.amount || item.rate * item.quantity
+												)
+											}}
+										</div>
 									</div>
+									<button
+										type="button"
+										@click.stop="$emit('remove-item', item.item_code, item.uom)"
+										class="text-gray-400 hover:text-red-600 active:text-red-700 transition-colors flex-shrink-0 p-0.5 touch-manipulation active:scale-90"
+										:aria-label="__('Remove {0}', [item.item_name])"
+										:title="__('Remove item')"
+									>
+										<svg
+											class="h-5 w-5"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M6 18L18 6M6 6l12 12"
+											/>
+										</svg>
+									</button>
 								</div>
 							</div>
 						</div>
@@ -1226,7 +1229,7 @@
 							'flex-1 min-w-[6.5rem] py-2.5 px-2 rounded-lg font-semibold text-xs transition-all inline-flex items-center justify-center gap-1.5 touch-manipulation overflow-visible',
 							items.length === 0
 								? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-								: 'text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200',
+								: 'bg-amber-600 text-white hover:bg-amber-700 active:bg-amber-800 shadow-md hover:shadow-lg',
 						]"
 						:title="__('Pay later with all debt')"
 						:aria-label="__('Pay Later (All Debt)')"
@@ -1283,7 +1286,7 @@
 							<textarea
 								v-model="cartStore.draftNote"
 								rows="1"
-								class="w-full h-10 px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white resize-none"
+								class="w-full h-10 px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent bg-white resize-none"
 								:placeholder="__('اكتب ملاحظة للفاتورة قبل التعليق...')"
 							></textarea>
 						</div>
@@ -1293,7 +1296,7 @@
 							type="button"
 							v-if="items.length > 0"
 							@click="$emit('save-draft')"
-							class="w-1/3 min-w-0 py-2.5 px-2 rounded-lg font-semibold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 transition-all touch-manipulation active:scale-[0.98] inline-flex items-center justify-center gap-1.5 overflow-visible"
+							class="w-1/3 min-w-0 py-2.5 px-2 rounded-lg font-semibold text-xs text-gray-700 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 border border-gray-300 transition-all touch-manipulation active:scale-[0.98] inline-flex items-center justify-center gap-1.5 overflow-visible"
 							:aria-label="__('Hold order as draft')"
 						>
 							<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -1313,6 +1316,7 @@
 			:warehouses="warehouses"
 			:currency="currency"
 			@update-item="handleUpdateItem"
+			@close="emit('refocus-barcode')"
 		/>
 
 	</div>
@@ -1771,11 +1775,16 @@ function handleSearchFocus() {
 /**
  * Handle search input blur - hides dropdown after a short delay.
  * Short delay as fallback for keyboard/tab navigation (mousedown.prevent handles click cases).
+ * When no customer is selected and focus leaves the customer area, refocus the barcode input.
  */
 function handleSearchBlur() {
 	// Reduced delay - mousedown.prevent handles most cases, this is just for keyboard nav
 	setTimeout(() => {
 		customerSearchFocused.value = false;
+		// If no customer is selected and focus has left the customer search area, return focus to the barcode
+		if (!props.customer && customerSearchContainer.value && !customerSearchContainer.value.contains(document.activeElement)) {
+			emit("refocus-barcode");
+		}
 	}, 100);
 }
 
@@ -2055,6 +2064,8 @@ function handleQuantityBlur(item) {
 	if (roundedQty !== item.quantity) {
 		emit("update-quantity", item.item_code, roundedQty, item.uom, true);
 	}
+	// Return focus to the barcode scanner input after quantity is updated
+	emit("refocus-barcode");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

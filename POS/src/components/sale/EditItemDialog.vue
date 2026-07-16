@@ -66,7 +66,7 @@
 														{{ localItem.item_name }}
 													</h3>
 													<p class="text-sm text-gray-500 truncate">
-														{{ formatCurrency(localItem.price_list_rate || localItem.rate) }} / {{ localItem.stock_uom || __('Nos', null, 'UOM') }}
+														{{ formatCurrency(localItem.price_list_rate || localItem.rate) }} / {{ localUom || localItem.stock_uom || __('Nos', null, 'UOM') }}
 													</p>
 												</div>
 											</div>
@@ -295,6 +295,8 @@
 
 <script setup>
 import { useToast } from "@/composables/useToast"
+import { usePOSCartStore } from "@/stores/posCart"
+import { usePOSPriceListStore } from "@/stores/posPriceList"
 import { usePOSSettingsStore } from "@/stores/posSettings"
 import { useSerialNumberStore } from "@/stores/serialNumber"
 import { getItemStock } from "@/utils/stockValidator"
@@ -306,6 +308,8 @@ import SelectInput from "@/components/common/SelectInput.vue"
 const { showSuccess, showError, showWarning } = useToast()
 const settingsStore = usePOSSettingsStore()
 const serialStore = useSerialNumberStore()
+const cartStore = usePOSCartStore()
+const priceListStore = usePOSPriceListStore()
 
 const props = defineProps({
 	modelValue: Boolean,
@@ -320,7 +324,7 @@ const props = defineProps({
 	},
 })
 
-const emit = defineEmits(["update:modelValue", "update-item"])
+const emit = defineEmits(["update:modelValue", "update-item", "close"])
 
 // Local state
 const localItem = ref(null)
@@ -340,6 +344,8 @@ const removedSerials = ref([]) // Track serials removed during this edit session
 const originalSerials = ref([]) // Original serials when dialog opened
 const localTargetAmount = ref(0)
 const itemCostRate = ref(0)
+const previousUom = ref("")
+const previousConversionFactor = ref(1)
 
 const show = computed({
 	get: () => props.modelValue,
@@ -367,6 +373,13 @@ const uomOptions = computed(() => {
 	return options
 })
 
+function getUomConversionFactor(uom) {
+	if (!localItem.value || !uom) return 1
+	if (uom === localItem.value.stock_uom) return 1
+	const uomData = localItem.value.item_uoms?.find((u) => u.uom === uom)
+	return uomData?.conversion_factor || 1
+}
+
 const warehouseOptions = computed(() => {
 	if (props.warehouses.length > 0) {
 		return props.warehouses.map(w => ({
@@ -382,6 +395,11 @@ const discountTypeOptions = computed(() => [
 	{ value: 'amount', label: __('Amount') }
 ])
 
+const itemRateForUomResource = createResource({
+	url: "pos_next.api.items.get_item_details",
+	auto: false,
+})
+
 // Initialize local state when item changes
 watch(
 	() => props.item,
@@ -390,6 +408,8 @@ watch(
 			localItem.value = { ...newItem }
 			localQuantity.value = newItem.quantity || 1
 			localUom.value = newItem.uom || newItem.stock_uom || __("Nos")
+			previousUom.value = localUom.value
+			previousConversionFactor.value = newItem.conversion_factor || getUomConversionFactor(localUom.value)
 			localRate.value = newItem.rate || 0
 			localTargetAmount.value = round2((newItem.quantity || 1) * (newItem.rate || newItem.price_list_rate || 0))
 			localWarehouse.value =
@@ -547,10 +567,49 @@ function handleTargetAmountBlur() {
 	calculateTotals()
 }
 
-function handleUomChange() {
-	// When UOM changes, we need to fetch new rate from server
-	// For now, we'll just recalculate with current rate
+async function handleUomChange() {
+	if (!localItem.value || localUom.value === previousUom.value) return
+
+	const newUom = localUom.value
+	const previousCF = previousConversionFactor.value || 1
+	const newCF = getUomConversionFactor(newUom)
+
+	// Keep local item metadata in sync (quantity stays as entered in the selected UOM)
+	localItem.value.conversion_factor = newCF
+	localItem.value.uom = newUom
+
+	// Fetch the price-list rate for the newly selected UOM
+	try {
+		const itemDetails = await itemRateForUomResource.submit({
+			item_code: localItem.value.item_code,
+			pos_profile: cartStore.posProfile,
+			customer: cartStore.customer?.name || cartStore.customer,
+			qty: localQuantity.value,
+			uom: newUom,
+			price_list: priceListStore.activePriceList,
+		})
+
+		if (itemDetails) {
+			const fetchedRate = itemDetails.price_list_rate || itemDetails.rate || 0
+			localRate.value = round2(fetchedRate)
+		}
+	} catch (error) {
+		console.warn("Failed to fetch UOM rate:", error)
+		// Fallback: scale the existing rate to the new UOM
+		if (previousCF > 0 && newCF > 0) {
+			localRate.value = round2((localRate.value * newCF) / previousCF)
+		}
+	}
+
+	// Keep local item price list rate consistent with the selected UOM
+	localItem.value.price_list_rate = localRate.value
+
+	// Update previous UOM tracking
+	previousUom.value = newUom
+	previousConversionFactor.value = newCF
+
 	calculateTotals()
+	localTargetAmount.value = round2(localQuantity.value * localRate.value)
 }
 
 async function handleWarehouseChange() {
@@ -691,10 +750,12 @@ function updateItem() {
 	}
 
 	emit("update-item", updatedItem)
+	emit("close")
 	show.value = false
 }
 
 function cancel() {
+	emit("close")
 	show.value = false
 }
 </script>

@@ -2,6 +2,7 @@
 	<Dialog
 		v-model="show"
 		:options="{ title: __('Invoice History'), size: '5xl' }"
+		@after-leave="$emit('after-leave')"
 	>
 		<template #body-content>
 			<div class="flex flex-col gap-4">
@@ -160,7 +161,7 @@ function formatCurrency(amount) {
 	return formatCurrencyUtil(Number.parseFloat(amount || 0), props.currency)
 }
 
-const emit = defineEmits(["update:modelValue", "create-return", "view-invoice", "print-invoice"])
+const emit = defineEmits(["update:modelValue", "create-return", "view-invoice", "print-invoice", "after-leave"])
 
 const show = ref(props.modelValue)
 const invoices = ref([])

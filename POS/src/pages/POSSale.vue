@@ -461,6 +461,7 @@
 			<ShiftOpeningDialog
 				v-model="uiStore.showOpenShiftDialog"
 				@shift-opened="handleShiftOpened"
+				@after-leave="handleRefocusBarcode"
 			/>
 
 			<!-- Shift Closing Dialog -->
@@ -468,6 +469,7 @@
 				v-model="uiStore.showCloseShiftDialog"
 				:opening-shift="shiftStore.currentShift?.name"
 				@shift-closed="handleShiftClosed"
+				@after-leave="handleRefocusBarcode"
 			/>
 
 			<!-- Draft Invoices Dialog -->
@@ -476,6 +478,7 @@
 				:currency="shiftStore.profileCurrency"
 				@load-draft="handleLoadDraft"
 				@drafts-updated="draftsStore.updateDraftsCount"
+				@after-leave="handleRefocusBarcode"
 			/>
 
 			<!-- Return Invoice Dialog -->
@@ -485,6 +488,7 @@
 				:pos-opening-shift="shiftStore.currentShift?.name"
 				:currency="shiftStore.profileCurrency"
 				@return-created="handleReturnCreated"
+				@after-leave="handleRefocusBarcode"
 			/>
 
 			<!-- Coupon Dialog -->
@@ -550,6 +554,7 @@
 				@create-return="handleCreateReturnFromHistory"
 				@view-invoice="handleViewInvoice"
 				@print-invoice="handlePrintInvoice"
+				@after-leave="handleRefocusBarcode"
 			/>
 
 			<!-- Offline Invoices Dialog -->
@@ -573,6 +578,7 @@
 				:customer="editCustomer"
 				@customer-created="handleCustomerCreated"
 				@customer-updated="handleCustomerUpdated"
+				@after-leave="handleRefocusBarcode"
 			/>
 
 			<!-- Promotion Management -->
@@ -582,6 +588,15 @@
 				:company="shiftStore.profileCompany"
 				:currency="shiftStore.profileCurrency"
 				@promotion-saved="handlePromotionSaved"
+				@after-leave="handleRefocusBarcode"
+			/>
+
+			<!-- Reports Dialog -->
+			<ReportsDialog
+				v-model="showReportsDialog"
+				:pos-profile="shiftStore.profileName"
+				:currency="shiftStore.profileCurrency"
+				@after-leave="handleRefocusBarcode"
 			/>
 
 			<!-- POS Settings -->
@@ -590,6 +605,7 @@
 				:pos-profile="shiftStore.profileName"
 				:current-warehouse="shiftStore.profileWarehouse"
 				@warehouse-changed="handleWarehouseChanged"
+				@after-leave="handleRefocusBarcode"
 			/>
 
 			<!-- Stock Lookup Dialog (Products Menu) -->
@@ -598,6 +614,7 @@
 				mode="search"
 				:pos-profile="shiftStore.profileName"
 				:company="shiftStore.profileCompany"
+				@after-leave="handleRefocusBarcode"
 			/>
 
 			<!-- Invoice Management -->
@@ -640,10 +657,18 @@
 				@load-order="handleLoadSalesOrder"
 			/>
 
+			<!-- Shift Notes Dialog -->
+			<ShiftNotesDialog
+				v-model="showShiftNotesDialog"
+				:opening-shift="shiftStore.currentShift?.name"
+				@after-leave="handleRefocusBarcode"
+			/>
+
 			<!-- Clear Cart Confirmation Dialog -->
 			<Dialog
 				v-model="uiStore.showClearCartDialog"
 				:options="{ title: __('Clear Cart?'), size: 'xs' }"
+				@after-leave="handleRefocusBarcode"
 			>
 				<template #body-content>
 					<div class="py-3">
@@ -935,6 +960,7 @@
 				:opening-shift="shiftStore.currentShift?.name"
 				:mode-of-payment="selectedQuickPaymentMethod?.mode_of_payment || 'Cash'"
 				@payment-created="handleCustomerPaymentCreated"
+				@after-leave="handleRefocusBarcode"
 			/>
 
 			<!-- Supplier Dialog (selection + payment) -->
@@ -949,6 +975,7 @@
 				@create-supplier="handleCreateSupplier"
 				@edit-supplier="handleEditSupplier"
 				@payment-created="handleSupplierPaymentCreated"
+				@after-leave="handleRefocusBarcode"
 			/>
 
                         <!-- Create Supplier Dialog -->
@@ -977,6 +1004,7 @@
 <script setup>
 import ShiftClosingDialog from "@/components/ShiftClosingDialog.vue";
 import ShiftOpeningDialog from "@/components/ShiftOpeningDialog.vue";
+import ShiftNotesDialog from "@/components/sale/ShiftNotesDialog.vue";
 import ClearCacheOverlay from "@/components/common/ClearCacheOverlay.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import POSFooter from "@/components/common/POSFooter.vue";
@@ -997,6 +1025,7 @@ import ItemsSelector from "@/components/sale/ItemsSelector.vue";
 import OffersDialog from "@/components/sale/OffersDialog.vue";
 import OfflineInvoicesDialog from "@/components/sale/OfflineInvoicesDialog.vue";
 import PromotionManagement from "@/components/sale/PromotionManagement.vue";
+import ReportsDialog from "@/components/sale/ReportsDialog.vue";
 import ReturnInvoiceDialog from "@/components/sale/ReturnInvoiceDialog.vue";
 import WarehouseAvailabilityDialog from "@/components/sale/WarehouseAvailabilityDialog.vue";
 import CurrencyExchangeDialog from "@/components/sale/CurrencyExchangeDialog.vue";
@@ -1122,6 +1151,9 @@ function computeCartHash() {
 // Promotion dialog
 const showPromotionManagement = ref(false);
 
+// Reports dialog
+const showReportsDialog = ref(false);
+
 // Settings dialog
 const showPOSSettings = ref(false);
 
@@ -1139,6 +1171,7 @@ const selectedInvoiceForView = ref(null);
 const showSalesOrdersDialog = ref(false);
 const showCurrencyExchangeDialog = ref(false);
 const showCreateSupplierDialog = ref(false);
+const showShiftNotesDialog = ref(false);
 
 // Invoice history data (used by InvoiceManagement component)
 const invoiceHistoryData = ref([]);
@@ -1879,7 +1912,7 @@ function handleCustomerSelected(selectedCustomer) {
 		cartStore.setCustomer(selectedCustomer);
 		uiStore.showCustomerDialog = false;
 		showSuccess(__("{0} selected", [selectedCustomer.customer_name]));
-
+		handleRefocusBarcode();
 	} else {
 		cartStore.setCustomer(null);
 	}
@@ -2316,6 +2349,7 @@ async function confirmClearCart() {
 	previousCartHash = "";
 	uiStore.showClearCartDialog = false;
 	showSuccess(__("All items removed from cart"));
+	handleRefocusBarcode();
 }
 
 async function handleOptionSelected(option) {
@@ -2421,10 +2455,13 @@ function handleCloseShift() {
 	uiStore.showCloseShiftDialog = true;
 }
 function handleRefocusBarcode() {
-	nextTick(() => {
-		const barcodeInput = document.getElementById("item-search");
-		if (barcodeInput) barcodeInput.focus();
-	});
+	console.log('handleRefocusBarcode called, ref:', itemsSelectorRef.value);
+	// Delay to let the browser/dialog focus restoration settle before refocusing barcode
+	setTimeout(() => {
+		console.log('delayed refocus, activeElement before:', document.activeElement);
+		itemsSelectorRef.value?.focusBarcode();
+		console.log('delayed refocus, activeElement after:', document.activeElement);
+	}, 150);
 }
 
 function formatCurrency(amount) {
@@ -2574,6 +2611,7 @@ async function handleCustomerCreated(newCustomer) {
 	await customerSearchStore.addCustomerToCache(newCustomer);
 
 	showSuccess(__("{0} created and selected", [newCustomer.customer_name]));
+	handleRefocusBarcode();
 }
 
 async function handleCustomerUpdated(updatedCustomer) {
@@ -2585,6 +2623,7 @@ async function handleCustomerUpdated(updatedCustomer) {
 	await customerSearchStore.addCustomerToCache(updatedCustomer);
 
 	showSuccess(__("{0} updated", [updatedCustomer.customer_name]));
+	handleRefocusBarcode();
 }
 
 function handleSupplierSelected(selectedSupplier) {
@@ -2917,6 +2956,8 @@ function handleExchangeCompleted(result) {
 function handleManagementMenuClick(menuItem) {
 	if (menuItem === "promotions") {
 		showPromotionManagement.value = true;
+	} else if (menuItem === "reports") {
+		showReportsDialog.value = true;
 	} else if (menuItem === "settings") {
 		showPOSSettings.value = true;
 	} else if (menuItem === "invoices") {
@@ -2938,6 +2979,8 @@ function handleManagementMenuClick(menuItem) {
 		if (posSettingsStore.allowSupplierPayment) {
 			showSupplierPaymentDialog.value = true;
 		}
+	} else if (menuItem === "shift-notes") {
+		showShiftNotesDialog.value = true;
 	}
 }
 

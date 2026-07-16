@@ -1,5 +1,5 @@
 <template>
-	<Dialog v-model="show" :options="{ title: __('دفع العميل'), size: 'lg' }">
+	<Dialog v-model="show" :options="{ title: __('دفع العميل'), size: 'lg' }" @after-leave="() => { console.log('CustomerPaymentDialog after-leave'); $emit('after-leave') }">
 		<template #body-content>
 			<div class="flex flex-col gap-4">
 				<div v-if="loading" class="flex items-center justify-center py-12">
@@ -294,7 +294,7 @@ const props = defineProps({
 	openingShift: { type: String, default: "" },
 	modeOfPayment: { type: String, default: "Cash" },
 })
-const emit = defineEmits(["update:modelValue", "payment-created"])
+const emit = defineEmits(["update:modelValue", "payment-created", "after-leave"])
 const { showSuccess, showError } = useToast()
 
 const show = computed({ get: () => props.modelValue, set: (val) => emit("update:modelValue", val) })
