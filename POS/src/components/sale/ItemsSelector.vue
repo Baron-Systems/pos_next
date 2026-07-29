@@ -764,6 +764,7 @@ import { useStock } from "@/composables/useStock"
 import { formatCurrency as formatCurrencyUtil } from "@/utils/currency"
 import { useToast } from "@/composables/useToast"
 import { useFavoriteItems } from "@/composables/useFavoriteItems"
+import { playErrorBeep, prepareAudioContext } from "@/utils/sounds"
 import { storeToRefs } from "pinia"
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
 import {
@@ -1067,12 +1068,13 @@ onUnmounted(() => {
 })
 
 // Barcode input: Enter → search, add, then clear barcode field (scanner detection kept)
-function handleBarcodeKeyDown(event) {
+async function handleBarcodeKeyDown(event) {
 	const currentTime = Date.now()
 	const timeDiff = currentTime - lastKeyTime.value
 
 	if (event.key === "Enter") {
 		event.preventDefault()
+		await prepareAudioContext()
 		const barcode = barcodeInputValue.value.trim()
 		if (barcode) {
 			handleBarcodeSearchWithValue(barcode, true, { clearBarcode: true, clearManual: false })
@@ -1287,13 +1289,20 @@ async function handleBarcodeSearchWithValue(value, forceAutoAdd = false, options
 		console.error("Barcode API error:", error)
 	}
 
+	// Fallback: API didn't find item, try local filteredItems (exactly 1 match)
 	if (filteredItems.value.length === 1) {
 		if (selectItem(filteredItems.value[0], shouldAutoAdd)) {
 			if (clearBarcode) barcodeInputValue.value = ""
 			if (clearManual) itemStore.clearSearch()
 			focusAfterAction()
 		}
-	} else if (filteredItems.value.length === 0) {
+		return
+	}
+
+	// No item was added — play error beep regardless of filteredItems count
+	playErrorBeep()
+
+	if (filteredItems.value.length === 0) {
 		showWarning(__('Item Not Found: No item found with barcode: {0}', [barcode]))
 		if (clearBarcode) barcodeInputValue.value = ""
 		if (clearManual) itemStore.clearSearch()
