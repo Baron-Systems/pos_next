@@ -314,11 +314,20 @@ export const clearBrowserCache = () => {
 		sessionStorage: 0,
 	}
 
+	// Keys that store user preferences and should persist across cache clears
+	const PROTECTED_KEYS = new Set([
+		'pos_next_favorite_items',
+		'pos_favorite_customer',
+		'pos_recent_customers',
+		'pos_frequent_customers',
+	])
+
 	try {
-		// Clear POS-specific localStorage items
+		// Clear POS-specific localStorage items (preserve user favorites)
 		const keysToRemove = []
 		for (let i = 0; i < localStorage.length; i++) {
 			const key = localStorage.key(i)
+			if (PROTECTED_KEYS.has(key)) continue
 			if (key?.startsWith('pos_next_') || key?.startsWith('frappe_')) {
 				keysToRemove.push(key)
 			}
@@ -329,10 +338,11 @@ export const clearBrowserCache = () => {
 			results.localStorage++
 		})
 
-		// Clear sessionStorage
+		// Clear sessionStorage (preserve user favorites)
 		const sessionKeys = []
 		for (let i = 0; i < sessionStorage.length; i++) {
 			const key = sessionStorage.key(i)
+			if (PROTECTED_KEYS.has(key)) continue
 			if (key?.startsWith('pos_next_') || key?.startsWith('frappe_')) {
 				sessionKeys.push(key)
 			}
