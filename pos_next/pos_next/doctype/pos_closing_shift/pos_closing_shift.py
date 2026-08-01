@@ -685,8 +685,6 @@ def make_closing_shift_from_opening(opening_shift):
     # Process payment entries
     pos_payments_table = []
     for py in get_payments_entries(opening_shift.get("name")):
-        # Use the actual party_type from Payment Entry (Customer/Supplier/Employee...)
-        party_type = py.party_type or ("Customer" if py.payment_type == "Receive" else "Supplier")
         # Pay (outflow) should be negative; Receive (inflow) should be positive
         signed_amount = flt(py.paid_amount) * (1 if py.payment_type == "Receive" else -1)
         pos_payments_table.append(frappe._dict({
@@ -696,7 +694,7 @@ def make_closing_shift_from_opening(opening_shift):
             "posting_date": py.posting_date,
             "customer": py.party,
             "payment_type": py.payment_type,
-            "party_type": party_type,
+            "party_type": py.party_type,
         }))
         amount = get_base_value(py, "paid_amount", "base_paid_amount")
         if py.payment_type == "Pay":
@@ -771,6 +769,20 @@ def make_closing_shift_from_opening(opening_shift):
 def submit_closing_shift(closing_shift):
     closing_shift = json.loads(closing_shift)
     closing_shift_doc = frappe.get_doc(closing_shift)
+    for row in closing_shift_doc.get("pos_payments", []):
+        if not row.payment_entry:
+            continue
+        payment_data = frappe.db.get_value(
+            "Payment Entry",
+            row.payment_entry,
+            ["payment_type", "party_type", "party"],
+            as_dict=True,
+        )
+        if not payment_data:
+            frappe.throw(_("Payment Entry {0} was not found").format(row.payment_entry))
+        row.payment_type = payment_data.payment_type
+        row.party_type = payment_data.party_type
+        row.customer = payment_data.party
     closing_shift_doc.flags.ignore_permissions = True
     closing_shift_doc.save()
     closing_shift_doc.submit()

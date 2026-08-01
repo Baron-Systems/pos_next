@@ -37,12 +37,11 @@
   },
   {
    "fieldname": "party_type",
-   "fieldtype": "Select",
+   "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Party Type",
-   "options": "\nCustomer\nSupplier",
    "read_only": 1,
-   "reqd": 1
+   "reqd": 0
   },
   {
    "fieldname": "customer",
@@ -50,7 +49,7 @@
    "in_list_view": 1,
    "label": "Party Name",
    "read_only": 1,
-   "reqd": 1
+   "reqd": 0
   },
   {
    "fetch_from": "pos_invoice.grand_total",
