@@ -445,6 +445,72 @@
 						<p class="mt-1 text-sm text-gray-500">{{ __('This item is out of stock in all warehouses') }}</p>
 					</div>
 				</div>
+
+				<!-- Barcode Management -->
+				<div v-if="barcodeItem && isReady && !loading && !showVariantSelection" class="mt-6 pt-6 border-t border-gray-200">
+					<div class="flex items-center justify-between mb-3">
+						<h4 class="text-sm font-semibold text-gray-900">{{ __('Barcodes') }}</h4>
+						<span class="text-xs text-gray-500 truncate max-w-[200px] text-end">{{ barcodeItem.item_name || barcodeItem.item_code }}</span>
+					</div>
+
+					<div v-if="loadingBarcodes" class="py-4 text-center">
+						<div class="inline-block animate-spin h-4 w-4 border-b-2 border-blue-500 rounded-full"></div>
+						<p class="mt-2 text-xs text-gray-500">{{ __('Loading barcodes...') }}</p>
+					</div>
+
+					<div v-else-if="barcodeMessage" :class="['p-3 rounded-lg text-sm mb-3', barcodeMessageClass]">
+						{{ barcodeMessage.text }}
+					</div>
+
+					<div v-if="!loadingBarcodes && barcodes.length > 0" class="mb-3">
+						<div class="flex flex-wrap gap-2">
+							<div
+								v-for="barcode in barcodes"
+								:key="barcode.barcode"
+								class="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs"
+							>
+								<span class="font-mono font-medium text-gray-900">{{ barcode.barcode }}</span>
+								<span v-if="barcode.uom" class="text-blue-600">({{ barcode.uom }})</span>
+							</div>
+						</div>
+					</div>
+
+					<div v-if="!loadingBarcodes && barcodes.length === 0 && !barcodeMessage" class="mb-3 text-sm text-gray-500">
+						{{ __('No barcodes for this item') }}
+					</div>
+
+					<div v-if="barcodeItem && !barcodeItemHasVariants && !loadingBarcodes" class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+						<label class="block text-xs font-medium text-gray-700 mb-1.5">{{ __('Add Barcode') }}</label>
+						<div class="flex flex-col sm:flex-row gap-2">
+							<input
+								v-model="newBarcode"
+								type="text"
+								:placeholder="__('Enter or scan barcode...')"
+								class="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+								@keydown.enter.prevent="addBarcode"
+							/>
+							<select
+								v-if="itemUoms.length > 0"
+								v-model="newBarcodeUom"
+								class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+							>
+								<option v-for="uom in itemUoms" :key="uom.uom" :value="uom.uom">{{ uom.uom }}</option>
+							</select>
+							<button
+								@click="addBarcode"
+								:disabled="!newBarcode.trim() || savingBarcode"
+								:class="[
+									'px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap',
+									newBarcode.trim() && !savingBarcode
+										? 'bg-blue-600 text-white hover:bg-blue-700'
+										: 'bg-gray-300 text-gray-500 cursor-not-allowed'
+								]"
+							>
+								{{ savingBarcode ? __('Saving...') : __('Add') }}
+							</button>
+						</div>
+					</div>
+				</div>
 			</div>
 			</template>
 
@@ -565,6 +631,16 @@ const error = ref(null)
 const warehouses = ref([])
 const isReady = ref(false) // Gate to prevent showing content before data is ready
 
+// Barcode management state
+const barcodes = ref([])
+const itemUoms = ref([])
+const newBarcode = ref('')
+const newBarcodeUom = ref('')
+const loadingBarcodes = ref(false)
+const savingBarcode = ref(false)
+const barcodeMessage = ref(null)
+const barcodeItemHasVariants = ref(false)
+
 // Computed display values
 const displayItemName = computed(() => {
 	if (isSearchMode.value) {
@@ -598,6 +674,50 @@ const groupedWarehouses = computed(() => {
 		grouped[key].push(warehouse)
 	}
 	return grouped
+})
+
+// Concrete item currently viewed (single variant or non-variant item) for barcode management
+const barcodeItem = computed(() => {
+	if (showVariantSelection.value) return null
+
+	// If one variant is selected, manage that variant
+	if (selectedVariants.value.length === 1) {
+		const variant = selectedVariants.value[0]
+		return {
+			item_code: variant.item_code,
+			item_name: variant.item_name,
+			stock_uom: variant.stock_uom || 'Nos'
+		}
+	}
+
+	// Multiple variants selected - ambiguous target
+	if (selectedVariants.value.length > 1) return null
+
+	// Search mode single item
+	if (isSearchMode.value && selectedItemCode.value) {
+		return {
+			item_code: selectedItemCode.value,
+			item_name: selectedItemName.value,
+			stock_uom: selectedUom.value || 'Nos'
+		}
+	}
+
+	// Item mode single item
+	if (!isSearchMode.value && props.itemCode) {
+		return {
+			item_code: props.itemCode,
+			item_name: props.itemName,
+			stock_uom: props.uom || 'Nos'
+		}
+	}
+
+	return null
+})
+
+const barcodeMessageClass = computed(() => {
+	if (barcodeMessage.value?.type === 'error') return 'bg-red-50 text-red-700'
+	if (barcodeMessage.value?.type === 'success') return 'bg-green-50 text-green-700'
+	return 'bg-yellow-50 text-yellow-700'
 })
 
 // Helper functions for variant info
@@ -683,6 +803,7 @@ function resetSearchState() {
 	showVariantSelection.value = false
 	warehouses.value = []
 	error.value = null
+	resetBarcodes()
 	// Don't reset isReady here - it's managed by the watch
 }
 
@@ -823,6 +944,7 @@ function clearSelectedItem() {
 	showVariantSelection.value = false
 	warehouses.value = []
 	error.value = null
+	resetBarcodes()
 	nextTick(() => {
 		focusSearch()
 	})
@@ -921,6 +1043,7 @@ async function loadAvailability() {
 		error.value = err.message || __('Failed to load warehouse availability')
 	} finally {
 		loading.value = false
+		maybeLoadBarcodes()
 	}
 }
 
@@ -948,6 +1071,120 @@ function formatPrice(price) {
 	const num = Number(price)
 	if (isNaN(num)) return ''
 	return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+/**
+ * Reset barcode management state
+ */
+function resetBarcodes() {
+	barcodes.value = []
+	itemUoms.value = []
+	newBarcode.value = ''
+	newBarcodeUom.value = ''
+	loadingBarcodes.value = false
+	savingBarcode.value = false
+	barcodeMessage.value = null
+	barcodeItemHasVariants.value = false
+}
+
+/**
+ * Load existing barcodes and UOMs for the selected item
+ */
+async function loadBarcodes(itemCode) {
+	if (!itemCode) {
+		resetBarcodes()
+		return
+	}
+
+	loadingBarcodes.value = true
+	barcodeMessage.value = null
+
+	try {
+		const res = await call('pos_next.api.items.get_item_barcodes', {
+			item_code: itemCode
+		})
+
+		barcodes.value = res?.barcodes || []
+		itemUoms.value = res?.uoms || []
+		barcodeItemHasVariants.value = res?.has_variants || false
+
+		// Pre-select stock UOM for new barcode
+		if (res?.stock_uom) {
+			newBarcodeUom.value = res.stock_uom
+		}
+
+		// Warn if a template item is being viewed directly
+		if (barcodeItemHasVariants.value) {
+			barcodeMessage.value = {
+				type: 'warning',
+				text: __('This is a template item. Please select a variant to add barcodes.')
+			}
+		}
+	} catch (err) {
+		console.error('Error loading barcodes:', err)
+		barcodeMessage.value = {
+			type: 'error',
+			text: err.message || __('Failed to load barcodes')
+		}
+		barcodes.value = []
+		itemUoms.value = []
+	} finally {
+		loadingBarcodes.value = false
+	}
+}
+
+/**
+ * Add a new barcode with the selected UOM
+ */
+async function addBarcode() {
+	if (savingBarcode.value) return
+
+	const item = barcodeItem.value
+	if (!item?.item_code) return
+
+	const barcode = newBarcode.value.trim()
+	if (!barcode) return
+
+	savingBarcode.value = true
+	barcodeMessage.value = null
+
+	try {
+		const res = await call('pos_next.api.items.add_item_barcode', {
+			item_code: item.item_code,
+			barcode: barcode,
+			uom: newBarcodeUom.value || item.stock_uom
+		})
+
+		barcodes.value = res?.barcodes || []
+		itemUoms.value = res?.uoms || []
+		barcodeItemHasVariants.value = res?.has_variants || false
+		newBarcode.value = ''
+
+		barcodeMessage.value = {
+			type: 'success',
+			text: __('Barcode added successfully')
+		}
+	} catch (err) {
+		console.error('Error adding barcode:', err)
+		barcodeMessage.value = {
+			type: 'error',
+			text: err.message || __('Failed to add barcode')
+		}
+	} finally {
+		savingBarcode.value = false
+	}
+}
+
+/**
+ * Trigger barcode loading for the currently viewed concrete item
+ */
+function maybeLoadBarcodes() {
+	const item = barcodeItem.value
+	if (item?.item_code) {
+		loadBarcodes(item.item_code)
+	} else {
+		resetBarcodes()
+	}
 }
 </script>
 

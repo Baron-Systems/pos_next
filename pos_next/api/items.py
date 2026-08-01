@@ -9,7 +9,7 @@ from erpnext.stock.doctype.batch.batch import get_batch_qty
 from erpnext.stock.get_item_details import get_item_details as erpnext_get_item_details
 from frappe import _
 from frappe.query_builder import DocType, functions as fn
-from frappe.utils import flt, nowdate
+from frappe.utils import cint, flt, nowdate
 
 ITEM_RESULT_FIELDS = [
 	"name as item_code",
@@ -460,6 +460,121 @@ def search_by_barcode(barcode, pos_profile, price_list=None):
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "Search by Barcode Error")
 		return {"error": True, "message": str(e)}
+
+
+@frappe.whitelist()
+def get_item_barcodes(item_code):
+	"""
+	Get all barcodes and valid UOMs for an item.
+
+	Used by the POS Stock Lookup dialog to list existing barcodes and
+	populate the UOM selector when adding a new barcode.
+	"""
+	try:
+		if not item_code:
+			frappe.throw(_("Item code is required"))
+
+		if not frappe.has_permission("Item", "read", doc=item_code):
+			frappe.throw(_("You do not have permission to read Item"))
+
+		item_doc = frappe.get_doc("Item", item_code)
+		has_variants = cint(item_doc.has_variants)
+
+		barcodes = [
+			{
+				"barcode": row.barcode,
+				"barcode_type": row.barcode_type,
+				"uom": row.uom,
+			}
+			for row in item_doc.get("barcodes", [])
+		]
+
+		uoms = frappe.get_all(
+			"UOM Conversion Detail",
+			filters={"parent": item_code},
+			fields=["uom", "conversion_factor"],
+			order_by="idx",
+		)
+
+		# Ensure stock UOM is listed first
+		stock_uom = item_doc.stock_uom
+		if stock_uom and not any(u.get("uom") == stock_uom for u in uoms):
+			uoms.insert(0, {"uom": stock_uom, "conversion_factor": 1.0})
+
+		return {
+			"item_code": item_code,
+			"item_name": item_doc.item_name,
+			"stock_uom": stock_uom,
+			"barcodes": barcodes,
+			"uoms": uoms,
+			"has_variants": has_variants,
+		}
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "Get Item Barcodes Error")
+		frappe.throw(_("Error fetching item barcodes: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def add_item_barcode(item_code, barcode, uom=None, barcode_type=None):
+	"""
+	Add a barcode (with optional UOM) to an Item.
+
+	Uses Frappe's document API so standard validation, permissions and hooks
+	are respected. The barcode is checked for uniqueness before appending.
+	"""
+	try:
+		if not item_code:
+			frappe.throw(_("Item code is required"))
+
+		barcode = (barcode or "").strip()
+		if not barcode:
+			frappe.throw(_("Barcode is required"))
+
+		if not frappe.has_permission("Item", "write", doc=item_code):
+			frappe.throw(_("You do not have permission to update Item"))
+
+		item_doc = frappe.get_doc("Item", item_code)
+
+		if cint(item_doc.has_variants):
+			frappe.throw(_("Cannot add barcode to a template item. Please select a variant."))
+
+		if uom:
+			uom = (uom or "").strip()
+			if uom != item_doc.stock_uom:
+				uom_exists = frappe.db.exists(
+					"UOM Conversion Detail", {"parent": item_code, "uom": uom}
+				)
+				if not uom_exists:
+					frappe.throw(
+						_("UOM {0} is not configured for item {1}").format(uom, item_code)
+					)
+		else:
+			uom = item_doc.stock_uom
+
+		# Item Barcode has a unique constraint; check explicitly for a clear message
+		existing = frappe.db.get_value(
+			"Item Barcode", {"barcode": barcode}, ["parent"], as_dict=True
+		)
+		if existing:
+			if existing.parent == item_code:
+				frappe.throw(_("Barcode {0} already exists for this item").format(barcode))
+			frappe.throw(
+				_("Barcode {0} already exists for item {1}").format(barcode, existing.parent)
+			)
+
+		item_doc.append("barcodes", {
+			"barcode": barcode,
+			"barcode_type": barcode_type,
+			"uom": uom,
+		})
+
+		# Save through the Item document so all ERPNext validation runs
+		item_doc.save()
+
+		return get_item_barcodes(item_code)
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "Add Item Barcode Error")
+		frappe.throw(_("Error adding item barcode: {0}").format(str(e)))
 
 
 @frappe.whitelist()
