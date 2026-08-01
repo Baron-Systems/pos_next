@@ -3,12 +3,6 @@
 
 frappe.ui.form.on("POS Closing Shift", {
 	onload: function (frm) {
-		frm.set_query("pos_profile", function (doc) {
-			return {
-				filters: { user: doc.user },
-			};
-		});
-
 		frm.set_query("user", function (doc) {
 			return {
 				query: "pos_next.pos_next.doctype.pos_closing_shift.pos_closing_shift.get_cashiers",
