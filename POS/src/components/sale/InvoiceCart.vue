@@ -90,24 +90,24 @@
 							</div>
 
 							<!-- Action Buttons -->
-							<div class="flex items-center gap-0.5 flex-shrink-0" @click.stop>
+							<div class="flex items-center gap-1 flex-shrink-0" @click.stop>
 								<button
 									type="button"
 									@click.stop="$emit('edit-customer', customer)"
-									class="w-7 h-7 flex items-center justify-center text-blue-500 hover:bg-blue-50 active:bg-blue-100 rounded-lg transition-colors touch-manipulation"
+									class="w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center text-blue-500 hover:bg-blue-50 active:bg-blue-100 focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 rounded-xl transition-colors touch-manipulation"
 									:title="__('Edit customer details')"
 								>
-									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+									<svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
 										<path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
 									</svg>
 								</button>
 								<button
 									type="button"
 									@click.stop="$emit('create-customer', '')"
-									class="w-7 h-7 flex items-center justify-center text-green-600 hover:bg-green-50 active:bg-green-100 rounded-lg transition-colors touch-manipulation"
+									class="w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center text-green-600 hover:bg-green-50 active:bg-green-100 focus:ring-2 focus:ring-green-400 focus:ring-offset-1 rounded-xl transition-colors touch-manipulation"
 									:title="__('Create new customer')"
 								>
-									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+									<svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
 										<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
 									</svg>
 								</button>
@@ -116,10 +116,10 @@
 											v-if="settingsStore.allowCustomerPayment"
 											type="button"
 											@click.stop="$emit('customer-payment', customer)"
-											class="w-7 h-7 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100 rounded-lg transition-colors touch-manipulation"
+											class="w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100 focus:ring-2 focus:ring-emerald-400 focus:ring-offset-1 rounded-xl transition-colors touch-manipulation"
 											:title="__('Customer payment')"
 										>
-											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+											<svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
 												<path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
 											</svg>
 										</button>
@@ -128,10 +128,10 @@
 								<button
 									type="button"
 									@click.stop="removeCustomer"
-									class="w-7 h-7 flex items-center justify-center text-red-500 hover:bg-red-50 active:bg-red-100 rounded-lg transition-colors touch-manipulation"
+									class="w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center text-red-500 hover:bg-red-50 active:bg-red-100 focus:ring-2 focus:ring-red-400 focus:ring-offset-1 rounded-xl transition-colors touch-manipulation"
 									:title="__('Remove customer')"
 								>
-									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+									<svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
 										<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
 									</svg>
 								</button>
@@ -471,8 +471,7 @@
 					>
 						<path
 							fill-rule="evenodd"
-							d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z"
-							clip-rule="evenodd"
+							d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4a2 2 0 00-2 2v2M4 7h16"
 						/>
 					</svg>
 					<span class="text-[11px] font-bold text-purple-700">{{ __("Coupon") }}</span>
@@ -762,8 +761,7 @@
 										>
 											<path
 												fill-rule="evenodd"
-												d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
-												clip-rule="evenodd"
+												d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573L5 7m5 4v6m4-6v6m1-10V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v2M4 7h16"
 											/>
 										</svg>
 										{{ __("+{0} FREE", [item.free_qty]) }}
@@ -812,14 +810,14 @@
 									>
 										<!-- Serial count badge -->
 										<div
-											class="flex items-center bg-blue-50 border border-blue-200 rounded px-1.5 h-6 sm:h-7"
+											class="flex items-center bg-blue-50 border border-blue-200 rounded-lg px-2 h-10 sm:h-11"
 										>
 											<FeatherIcon
 												name="hash"
-												class="w-3 h-3 text-blue-500 me-0.5"
+												class="w-4 h-4 text-blue-500 me-1"
 											/>
 											<span
-												class="text-xs sm:text-sm font-bold text-blue-700"
+												class="text-sm sm:text-base font-bold text-blue-700"
 												>{{ item.quantity }}</span
 											>
 										</div>
@@ -827,22 +825,22 @@
 										<button
 											type="button"
 											@click="openEditDialog(item)"
-											class="flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded transition-colors shadow-sm"
+											class="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 text-white rounded-lg transition-colors shadow-sm touch-manipulation"
 											:title="__('Edit serials')"
 										>
-											<FeatherIcon name="edit-2" class="w-3 h-3" />
+											<FeatherIcon name="edit-2" class="w-5 h-5" />
 										</button>
 									</div>
 									<!-- For non-serial items, show normal quantity controls -->
 									<div
 										v-else
-										class="flex items-center bg-gray-50 border border-gray-200 rounded overflow-hidden"
+										class="flex items-center bg-gray-50 border border-gray-200 rounded-lg overflow-hidden"
 										@click.stop
 									>
 										<button
 											type="button"
 											@click="decrementQuantity(item)"
-											class="w-10 h-8 sm:w-12 sm:h-9 bg-white hover:bg-gray-100 active:bg-gray-200 flex items-center justify-center font-bold text-gray-700 transition-colors touch-manipulation border-e border-gray-200"
+											class="w-11 h-10 sm:w-12 sm:h-11 bg-white hover:bg-gray-100 active:bg-gray-200 focus:ring-2 focus:ring-blue-400 focus:ring-inset flex items-center justify-center font-bold text-gray-700 transition-colors touch-manipulation border-e border-gray-200"
 											:aria-label="__('Decrease quantity')"
 											:title="__('Decrease quantity')"
 										>
@@ -868,14 +866,14 @@
 											@keydown.enter="$event.target.blur()"
 											type="text"
 											inputmode="decimal"
-											class="w-14 sm:w-16 h-8 sm:h-9 text-center bg-white border-0 text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+											class="w-10 sm:w-16 h-10 sm:h-11 text-center bg-white border-0 text-sm sm:text-base font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
 											:class="item.quantity < 0 ? 'text-red-600' : 'text-gray-900'"
 											:aria-label="__('Quantity')"
 										/>
 										<button
 											type="button"
 											@click="incrementQuantity(item)"
-											class="w-10 h-8 sm:w-12 sm:h-9 bg-white hover:bg-gray-100 active:bg-gray-200 flex items-center justify-center font-bold text-gray-700 transition-colors touch-manipulation border-s border-gray-200"
+											class="w-11 h-10 sm:w-12 sm:h-11 bg-white hover:bg-gray-100 active:bg-gray-200 focus:ring-2 focus:ring-blue-400 focus:ring-inset flex items-center justify-center font-bold text-gray-700 transition-colors touch-manipulation border-s border-gray-200"
 											:aria-label="__('Increase quantity')"
 											:title="__('Increase quantity')"
 										>
@@ -904,7 +902,7 @@
 												!item.item_uoms || item.item_uoms.length === 0
 											"
 											:class="[
-												'h-6 sm:h-7 text-[10px] sm:text-xs font-bold rounded ps-2 pe-5 transition-all touch-manipulation flex items-center justify-center min-w-[45px]',
+												'h-10 sm:h-11 text-xs sm:text-sm font-bold rounded-lg ps-2.5 pe-6 transition-all touch-manipulation flex items-center justify-center min-w-[52px]',
 												item.item_uoms && item.item_uoms.length > 0
 													? 'bg-blue-500 text-white border border-blue-400 hover:bg-blue-600 active:scale-95 cursor-pointer'
 													: 'bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed opacity-60',
@@ -923,7 +921,7 @@
 										</button>
 										<svg
 											:class="[
-												'absolute end-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 pointer-events-none transition-transform',
+												'absolute end-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none transition-transform',
 												openUomDropdown === `${item.item_code}-${item.uom}`
 													? 'rotate-180'
 													: '',
@@ -949,13 +947,13 @@
 												item.item_uoms &&
 												item.item_uoms.length > 0
 											"
-											class="absolute top-full start-0 mt-0.5 bg-white border border-blue-300 rounded shadow-xl z-50 min-w-full overflow-hidden"
+											class="absolute top-full start-0 mt-1 bg-white border border-blue-300 rounded-lg shadow-xl z-50 min-w-full overflow-hidden"
 										>
 											<button
 												type="button"
 												@click="selectUom(item, item.stock_uom)"
 												:class="[
-													'w-full text-start px-2 py-1.5 text-[10px] sm:text-xs font-semibold transition-colors border-b border-gray-100',
+													'w-full text-start px-2.5 py-2 text-xs sm:px-3 sm:py-2.5 sm:text-sm font-semibold transition-colors border-b border-gray-100 touch-manipulation active:bg-blue-100',
 													(item.uom || item.stock_uom) === item.stock_uom
 														? 'bg-blue-50 text-blue-700'
 														: 'text-gray-700 hover:bg-blue-50',
@@ -969,7 +967,7 @@
 												type="button"
 												@click="selectUom(item, uomData.uom)"
 												:class="[
-													'w-full text-start px-2 py-1.5 text-[10px] sm:text-xs font-semibold transition-colors border-b border-gray-100 last:border-0',
+													'w-full text-start px-2.5 py-2 text-xs sm:px-3 sm:py-2.5 sm:text-sm font-semibold transition-colors border-b border-gray-100 last:border-0 touch-manipulation active:bg-blue-100',
 													(item.uom || item.stock_uom) === uomData.uom
 														? 'bg-blue-50 text-blue-700'
 														: 'text-gray-700 hover:bg-blue-50',
@@ -1003,12 +1001,12 @@
 									<button
 										type="button"
 										@click.stop="$emit('remove-item', item.item_code, item.uom)"
-										class="text-gray-400 hover:text-red-600 active:text-red-700 transition-colors flex-shrink-0 p-0.5 touch-manipulation active:scale-90"
+										class="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 text-gray-400 hover:text-red-600 hover:bg-red-50 active:text-red-700 active:bg-red-100 focus:ring-2 focus:ring-red-400 focus:ring-offset-1 transition-colors flex-shrink-0 rounded-lg touch-manipulation active:scale-90"
 										:aria-label="__('Remove {0}', [item.item_name])"
 										:title="__('Remove item')"
 									>
 										<svg
-											class="h-5 w-5"
+											class="h-5 w-5 sm:h-6 sm:w-6"
 											fill="none"
 											stroke="currentColor"
 											viewBox="0 0 24 24"
@@ -1016,7 +1014,7 @@
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
-												stroke-width="2"
+												stroke-width="2.5"
 												d="M6 18L18 6M6 6l12 12"
 											/>
 										</svg>
