@@ -703,7 +703,7 @@
 			<div v-else class="flex flex-col gap-0.5 sm:gap-1">
 				<div
 					v-for="(item, index) in items"
-					:key="index"
+					:key="`${item.item_code}-${item.uom}`"
 					@click="openEditDialog(item)"
 					class="bg-white border border-gray-200 rounded-md p-1.5 sm:p-2 hover:border-blue-300 hover:shadow-md transition-all duration-200 active:scale-[0.99] cursor-pointer group"
 				>
@@ -897,7 +897,7 @@
 									<div class="relative group/uom" @click.stop>
 										<button
 											type="button"
-											@click="toggleUomDropdown(item.item_code, item.uom)"
+											@click="toggleUomDropdown($event, item.item_code, item.uom)"
 											:disabled="
 												!item.item_uoms || item.item_uoms.length === 0
 											"
@@ -940,42 +940,6 @@
 												d="M19 9l-7 7-7-7"
 											/>
 										</svg>
-										<div
-											v-if="
-												openUomDropdown ===
-													`${item.item_code}-${item.uom}` &&
-												item.item_uoms &&
-												item.item_uoms.length > 0
-											"
-											class="absolute top-full start-0 mt-1 bg-white border border-blue-300 rounded-lg shadow-xl z-50 min-w-full overflow-hidden"
-										>
-											<button
-												type="button"
-												@click="selectUom(item, item.stock_uom)"
-												:class="[
-													'w-full text-start px-2.5 py-2 text-xs sm:px-3 sm:py-2.5 sm:text-sm font-semibold transition-colors border-b border-gray-100 touch-manipulation active:bg-blue-100',
-													(item.uom || item.stock_uom) === item.stock_uom
-														? 'bg-blue-50 text-blue-700'
-														: 'text-gray-700 hover:bg-blue-50',
-												]"
-											>
-												{{ item.stock_uom || __("Nos", null, "UOM") }}
-											</button>
-											<button
-												v-for="uomData in item.item_uoms"
-												:key="uomData.uom"
-												type="button"
-												@click="selectUom(item, uomData.uom)"
-												:class="[
-													'w-full text-start px-2.5 py-2 text-xs sm:px-3 sm:py-2.5 sm:text-sm font-semibold transition-colors border-b border-gray-100 last:border-0 touch-manipulation active:bg-blue-100',
-													(item.uom || item.stock_uom) === uomData.uom
-														? 'bg-blue-50 text-blue-700'
-														: 'text-gray-700 hover:bg-blue-50',
-												]"
-											>
-												{{ uomData.uom }}
-											</button>
-										</div>
 									</div>
 
 									<!-- Price -->
@@ -1318,6 +1282,47 @@
 		/>
 
 	</div>
+
+	<!-- Teleported UOM Dropdown - escapes overflow-y-auto container -->
+	<Teleport to="body">
+		<div
+			v-if="activeUomItem && activeUomItem.item_uoms && activeUomItem.item_uoms.length > 0"
+			data-uom-dropdown
+			class="fixed bg-white border border-blue-300 rounded-lg shadow-xl z-[9999] overflow-hidden"
+			:style="{
+				top: uomDropdownPos.top + 'px',
+				left: uomDropdownPos.left + 'px',
+				minWidth: uomDropdownPos.width + 'px',
+			}"
+		>
+			<button
+				type="button"
+				@click="selectUom(activeUomItem, activeUomItem.stock_uom)"
+				:class="[
+					'w-full text-start px-2.5 py-2 text-xs sm:px-3 sm:py-2.5 sm:text-sm font-semibold transition-colors border-b border-gray-100 touch-manipulation active:bg-blue-100',
+					(activeUomItem.uom || activeUomItem.stock_uom) === activeUomItem.stock_uom
+						? 'bg-blue-50 text-blue-700'
+						: 'text-gray-700 hover:bg-blue-50',
+				]"
+			>
+				{{ activeUomItem.stock_uom || __("Nos", null, "UOM") }}
+			</button>
+			<button
+				v-for="uomData in activeUomItem.item_uoms"
+				:key="uomData.uom"
+				type="button"
+				@click="selectUom(activeUomItem, uomData.uom)"
+				:class="[
+					'w-full text-start px-2.5 py-2 text-xs sm:px-3 sm:py-2.5 sm:text-sm font-semibold transition-colors border-b border-gray-100 last:border-0 touch-manipulation active:bg-blue-100',
+					(activeUomItem.uom || activeUomItem.stock_uom) === uomData.uom
+						? 'bg-blue-50 text-blue-700'
+						: 'text-gray-700 hover:bg-blue-50',
+				]"
+			>
+				{{ uomData.uom }}
+			</button>
+		</div>
+	</Teleport>
 </template>
 
 <script setup>
@@ -1477,6 +1482,13 @@ const selectedItem = ref(null); // Item being edited
 
 // UOM dropdown state - tracks which item's UOM dropdown is open (by item_code)
 const openUomDropdown = ref(null);
+const uomDropdownPos = ref({ top: 0, left: 0, width: 0 });
+const activeUomItem = computed(() => {
+	if (!openUomDropdown.value) return null;
+	return props.items.find(
+		(item) => `${item.item_code}-${item.uom}` === openUomDropdown.value
+	);
+});
 
 // Additional discount (above payment buttons) - local state for type and value
 const additionalDiscountType = ref(settingsStore.usePercentageDiscount ? "percentage" : "amount");
@@ -2074,9 +2086,20 @@ function handleQuantityBlur(item) {
  * Toggle UOM dropdown visibility for an item.
  * Uses unique key combining item_code + uom to handle same item with different UOMs.
  */
-function toggleUomDropdown(itemCode, uom) {
+function toggleUomDropdown(event, itemCode, uom) {
 	const key = `${itemCode}-${uom}`;
-	openUomDropdown.value = openUomDropdown.value === key ? null : key;
+	if (openUomDropdown.value === key) {
+		openUomDropdown.value = null;
+		return;
+	}
+
+	const rect = event.currentTarget.getBoundingClientRect();
+	uomDropdownPos.value = {
+		top: rect.bottom + 4,
+		left: rect.left,
+		width: rect.width,
+	};
+	openUomDropdown.value = key;
 }
 
 /**
@@ -2161,10 +2184,12 @@ function handleOutsideClick(event) {
 
 	// Close UOM dropdown if clicking outside
 	if (openUomDropdown.value !== null) {
-		// Check if click is outside all UOM dropdowns
-		const clickedInsideUomDropdown =
+		// Check if click is inside the UOM button group or the teleported dropdown
+		const clickedInsideUomButton =
 			target instanceof Element && target.closest(".group\\/uom");
-		if (!clickedInsideUomDropdown) {
+		const clickedInsideUomMenu =
+			target instanceof Element && target.closest("[data-uom-dropdown]");
+		if (!clickedInsideUomButton && !clickedInsideUomMenu) {
 			openUomDropdown.value = null;
 		}
 	}
