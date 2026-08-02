@@ -220,10 +220,12 @@ def get_pos_settings(pos_profile=None):
 		pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
 		settings["allow_customer_payment"] = cint(pos_profile_doc.allow_customer_payment or 0)
 		settings["allow_supplier_payment"] = cint(pos_profile_doc.allow_supplier_payment or 0)
+		settings["allow_stock_lookup"] = cint(pos_profile_doc.posa_allow_stock_lookup or 0)
 	except Exception:
 		# If POS Profile doesn't exist or field doesn't exist, default to 0
 		settings["allow_customer_payment"] = 0
 		settings["allow_supplier_payment"] = 0
+		settings["allow_stock_lookup"] = 0
 
 	# Inject currency_setup for enabled currency exchange
 	if cint(settings.get("enable_currency_exchange")):

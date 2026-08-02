@@ -557,9 +557,15 @@
 					<button
 						type="button"
 						@click="$emit('show-drafts')"
-						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 active:bg-purple-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
+						class="relative flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 active:bg-purple-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
 						:title="__('View draft invoices')"
 					>
+						<span
+							v-if="draftsStore.draftsCount > 0"
+							class="absolute top-1 end-1 min-w-[18px] h-[18px] flex items-center justify-center bg-purple-600 text-white text-[10px] font-bold rounded-full px-1"
+						>
+							{{ draftsStore.draftsCount }}
+						</span>
 						<div
 							class="w-9 h-9 sm:w-10 sm:h-10 bg-purple-50 rounded-full flex items-center justify-center mb-2 group-hover:bg-purple-100 transition-colors"
 						>
@@ -705,9 +711,9 @@
 					v-for="(item, index) in items"
 					:key="`${item.item_code}-${item.uom}`"
 					@click="openEditDialog(item)"
-					class="bg-white border border-gray-200 rounded-md p-1.5 sm:p-2 hover:border-blue-300 hover:shadow-md transition-all duration-200 active:scale-[0.99] cursor-pointer group"
+					class="bg-white border border-gray-200 rounded-md hover:border-blue-300 hover:shadow-md transition-all duration-200 active:scale-[0.99] cursor-pointer group flex overflow-hidden"
 				>
-					<div class="flex gap-1.5 sm:gap-2">
+					<div class="flex-1 min-w-0 flex gap-1.5 sm:gap-2 p-1.5 sm:p-2">
 						<!-- Item Image Thumbnail -->
 						<div
 							class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-gray-200"
@@ -962,31 +968,32 @@
 											}}
 										</div>
 									</div>
-									<button
-										type="button"
-										@click.stop="$emit('remove-item', item.item_code, item.uom)"
-										class="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 text-gray-400 hover:text-red-600 hover:bg-red-50 active:text-red-700 active:bg-red-100 focus:ring-2 focus:ring-red-400 focus:ring-offset-1 transition-colors flex-shrink-0 rounded-lg touch-manipulation active:scale-90"
-										:aria-label="__('Remove {0}', [item.item_name])"
-										:title="__('Remove item')"
-									>
-										<svg
-											class="h-5 w-5 sm:h-6 sm:w-6"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2.5"
-												d="M6 18L18 6M6 6l12 12"
-											/>
-										</svg>
-									</button>
-								</div>
 							</div>
 						</div>
 					</div>
+					</div>
+					<!-- Delete Button - Full height red square -->
+					<button
+						type="button"
+						@click.stop="$emit('remove-item', item.item_code, item.uom)"
+						class="flex items-center justify-center w-9 sm:w-10 bg-gray-400 hover:bg-gray-500 active:bg-gray-600 text-white transition-colors flex-shrink-0 touch-manipulation active:scale-95"
+						:aria-label="__('Remove {0}', [item.item_name])"
+						:title="__('Remove item')"
+					>
+						<svg
+							class="h-5 w-5 sm:h-6 sm:w-6"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2.5"
+								d="M6 18L18 6M6 6l12 12"
+							/>
+						</svg>
+					</button>
 				</div>
 			</div>
 		</div>
@@ -995,6 +1002,12 @@
 		<div class="p-1.5 sm:p-2 bg-white border-t border-gray-200">
 			<!-- Summary Details -->
 			<div v-if="items.length > 0" class="mb-1.5">
+				<div class="flex items-center justify-between text-xs text-gray-600 mb-0.5">
+					<span class="font-medium">{{ __("عدد الأصناف") }}</span>
+					<span class="font-bold text-gray-900 text-center min-w-[60px]">{{
+						items.length
+					}}</span>
+				</div>
 				<div class="flex items-center justify-between text-xs text-gray-600 mb-0.5">
 					<span class="font-medium">{{ __("Total Quantity") }}</span>
 					<span class="font-bold text-gray-900 text-center min-w-[60px]">{{
@@ -1032,28 +1045,6 @@
 					</div>
 					<span class="text-sm font-extrabold text-red-600 text-center min-w-[60px]">{{
 						formatCurrency(discountAmount)
-					}}</span>
-				</div>
-
-				<div class="flex items-center justify-between text-xs text-gray-600">
-					<div class="flex items-center gap-1">
-						<svg
-							class="w-3.5 h-3.5 text-gray-500"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-							/>
-						</svg>
-						<span class="font-medium">{{ __("Tax") }}</span>
-					</div>
-					<span class="font-bold text-gray-900 text-center min-w-[60px]">{{
-						formatCurrency(taxAmount)
 					}}</span>
 				</div>
 			</div>
@@ -1336,6 +1327,7 @@ import { usePOSSettingsStore } from "@/stores/posSettings";
 import { usePOSOffersStore } from "@/stores/posOffers";
 import { useCustomerSearchStore } from "@/stores/customerSearch";
 import { useBootstrapStore } from "@/stores/bootstrap";
+import { usePOSDraftsStore } from "@/stores/posDrafts";
 import { formatCurrency as formatCurrencyUtil, getCurrencySymbol } from "@/utils/currency";
 import { useFormatters } from "@/composables/useFormatters";
 import { isOffline } from "@/utils/offline";
@@ -1358,6 +1350,7 @@ const settingsStore = usePOSSettingsStore(); // Pinia store for POS settings
 const offersStore = usePOSOffersStore(); // Pinia store for offers/promotions
 const customerSearchStore = useCustomerSearchStore(); // Pinia store for customer search
 const bootstrapStore = useBootstrapStore(); // Bootstrap store for payment methods
+const draftsStore = usePOSDraftsStore(); // Pinia store for drafts
 const { toggleFavoriteCustomer, isFavoriteCustomer } = customerSearchStore; // Favorite customer helpers
 const { formatQuantity } = useFormatters(); // Quantity formatting utilities
 
@@ -2203,6 +2196,7 @@ onMounted(() => {
 	if (typeof document === "undefined") return;
 	// Use mousedown instead of click to catch events before they are swallowed by other handlers
 	document.addEventListener("mousedown", handleOutsideClick);
+	draftsStore.updateDraftsCount();
 });
 
 /**

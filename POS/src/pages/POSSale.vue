@@ -1818,6 +1818,7 @@ function handleItemSelected(item, autoAdd = false) {
 	if (autoAdd) {
 		try {
 			cartStore.addItem(item, qty, true, shiftStore.currentProfile);
+			clearSearchAndRefocusBarcode();
 		} catch (error) {
 			uiStore.showError(
 				__("Insufficient Stock"),
@@ -1887,6 +1888,7 @@ function handleItemSelected(item, autoAdd = false) {
 	// Add to cart
 	try {
 		cartStore.addItem(item, qty, false, shiftStore.currentProfile);
+		clearSearchAndRefocusBarcode();
 	} catch (error) {
 		uiStore.showError(
 			__("Insufficient Stock"),
@@ -1894,6 +1896,13 @@ function handleItemSelected(item, autoAdd = false) {
 			__("Item: {0}", [item.item_code])
 		);
 	}
+}
+
+function clearSearchAndRefocusBarcode() {
+	itemStore.clearSearch();
+	nextTick(() => {
+		itemsSelectorRef.value?.focusBarcode();
+	});
 }
 
 async function handleEditItem(updatedItem) {
@@ -2383,6 +2392,7 @@ async function handleOptionSelected(option) {
 					);
 					uiStore.showItemSelectionDialog = false;
 					cartStore.clearPendingItem();
+					clearSearchAndRefocusBarcode();
 					showSuccess(__("{0} added to cart", [variant.item_name]));
 				} catch (error) {
 					showError(error.message);
@@ -2404,6 +2414,7 @@ async function handleOptionSelected(option) {
 					);
 					uiStore.showItemSelectionDialog = false;
 					cartStore.clearPendingItem();
+					clearSearchAndRefocusBarcode();
 					showSuccess(__("{0} added to cart", [variant.item_name]));
 				} catch (error) {
 					showError(error.message);
@@ -2436,6 +2447,7 @@ async function handleOptionSelected(option) {
 					cartStore.addItem(itemToAdd, qty, false, shiftStore.currentProfile);
 					uiStore.showItemSelectionDialog = false;
 					cartStore.clearPendingItem();
+					clearSearchAndRefocusBarcode();
 					showSuccess(__("{0} ({1}) added to cart", [itemToAdd.item_name, option.uom]));
 				} catch (error) {
 					showError(error.message);
@@ -2588,6 +2600,7 @@ function handleBatchSerialSelected(batchSerial) {
 		try {
 			cartStore.addItem(itemToAdd, qty, false, shiftStore.currentProfile);
 			cartStore.clearPendingItem();
+			clearSearchAndRefocusBarcode();
 		} catch (error) {
 			showError(error.message);
 		}
@@ -2964,8 +2977,10 @@ function handleManagementMenuClick(menuItem) {
 		draftsStore.loadDrafts();
 		showInvoiceManagement.value = true;
 	} else if (menuItem === "products") {
-		// Open Stock Lookup dialog in search mode
-		showStockLookup.value = true;
+		// Open Stock Lookup dialog in search mode (only if stock lookup is allowed)
+		if (posSettingsStore.allowStockLookup) {
+			showStockLookup.value = true;
+		}
 	} else if (menuItem === "sales-orders") {
 		// Open Sales Orders dialog
 		showSalesOrdersDialog.value = true;

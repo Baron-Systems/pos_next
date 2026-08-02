@@ -1360,6 +1360,7 @@ function formatCurrency(amount) {
 
 // Show warehouse availability dialog
 function showWarehouseAvailability(item) {
+	if (!settingsStore.allowStockLookup) return
 	warehouseDialogItem.value = {
 		itemCode: item.item_code,
 		itemName: item.item_name,

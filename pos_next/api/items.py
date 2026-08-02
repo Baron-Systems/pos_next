@@ -578,6 +578,273 @@ def add_item_barcode(item_code, barcode, uom=None, barcode_type=None):
 
 
 @frappe.whitelist()
+def update_item_barcode(item_code, old_barcode, new_barcode=None, uom=None):
+	"""
+	Update an existing barcode for an Item.
+	Can change the barcode value and/or the UOM.
+	"""
+	try:
+		if not item_code:
+			frappe.throw(_("Item code is required"))
+
+		if not frappe.has_permission("Item", "write", doc=item_code):
+			frappe.throw(_("You do not have permission to update Item"))
+
+		old_barcode = (old_barcode or "").strip()
+		if not old_barcode:
+			frappe.throw(_("Old barcode is required"))
+
+		item_doc = frappe.get_doc("Item", item_code)
+
+		# Find the barcode row
+		barcodes = item_doc.get("barcodes", [])
+		target_row = None
+		for row in barcodes:
+			if row.barcode == old_barcode:
+				target_row = row
+				break
+
+		if not target_row:
+			frappe.throw(_("Barcode {0} not found for item {1}").format(old_barcode, item_code))
+
+		new_barcode_val = (new_barcode or "").strip() if new_barcode else None
+		if new_barcode_val and new_barcode_val != old_barcode:
+			# Check uniqueness of the new barcode value
+			existing = frappe.db.get_value(
+				"Item Barcode", {"barcode": new_barcode_val}, ["parent"], as_dict=True
+			)
+			if existing:
+				if existing.parent == item_code:
+					frappe.throw(_("Barcode {0} already exists for this item").format(new_barcode_val))
+				frappe.throw(
+					_("Barcode {0} already exists for item {1}").format(new_barcode_val, existing.parent)
+				)
+			target_row.barcode = new_barcode_val
+
+		if uom is not None:
+			uom = (uom or "").strip()
+			if uom and uom != item_doc.stock_uom:
+				uom_exists = frappe.db.exists(
+					"UOM Conversion Detail", {"parent": item_code, "uom": uom}
+				)
+				if not uom_exists:
+					frappe.throw(
+						_("UOM {0} is not configured for item {1}").format(uom, item_code)
+					)
+			target_row.uom = uom or item_doc.stock_uom
+
+		item_doc.save()
+		return get_item_barcodes(item_code)
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "Update Item Barcode Error")
+		frappe.throw(_("Error updating item barcode: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def delete_item_barcode(item_code, barcode):
+	"""
+	Delete a barcode from an Item.
+	"""
+	try:
+		if not item_code:
+			frappe.throw(_("Item code is required"))
+
+		if not frappe.has_permission("Item", "write", doc=item_code):
+			frappe.throw(_("You do not have permission to update Item"))
+
+		barcode = (barcode or "").strip()
+		if not barcode:
+			frappe.throw(_("Barcode is required"))
+
+		item_doc = frappe.get_doc("Item", item_code)
+
+		barcodes = item_doc.get("barcodes", [])
+		found = False
+		for row in barcodes:
+			if row.barcode == barcode:
+				item_doc.remove(row)
+				found = True
+				break
+
+		if not found:
+			frappe.throw(_("Barcode {0} not found for item {1}").format(barcode, item_code))
+
+		item_doc.save()
+		return get_item_barcodes(item_code)
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "Delete Item Barcode Error")
+		frappe.throw(_("Error deleting item barcode: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def get_item_prices(item_code, pos_profile=None):
+	"""
+	Get all Item Price entries for an item, grouped by price list and UOM.
+	Returns both buying and selling prices.
+	"""
+	try:
+		if not item_code:
+			frappe.throw(_("Item code is required"))
+
+		if not frappe.has_permission("Item", "read", doc=item_code):
+			frappe.throw(_("You do not have permission to read Item"))
+
+		# Get the selling price list from POS profile
+		selling_price_list = None
+		if pos_profile:
+			if isinstance(pos_profile, str):
+				try:
+					pos_profile = json.loads(pos_profile)
+				except (json.JSONDecodeError, ValueError):
+					pass
+			if isinstance(pos_profile, dict):
+				pos_profile = pos_profile.get("name") or pos_profile.get("pos_profile")
+			if pos_profile:
+				selling_price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
+
+		ItemPrice = DocType("Item Price")
+		query = (
+			frappe.qb.from_(ItemPrice)
+			.select(
+				ItemPrice.name,
+				ItemPrice.price_list,
+				ItemPrice.uom,
+				ItemPrice.price_list_rate,
+				ItemPrice.currency,
+				ItemPrice.selling,
+				ItemPrice.buying,
+				ItemPrice.valid_from,
+				ItemPrice.valid_upto,
+			)
+			.where(ItemPrice.item_code == item_code)
+			.orderby(ItemPrice.selling, order=frappe.qb.desc)
+			.orderby(ItemPrice.price_list)
+		)
+		prices = query.run(as_dict=True)
+
+		# Mark which price list is the POS selling price list
+		for p in prices:
+			p["is_pos_price_list"] = (selling_price_list and p["price_list"] == selling_price_list)
+
+		# Get item UOMs for reference
+		uoms = frappe.get_all(
+			"UOM Conversion Detail",
+			filters={"parent": item_code},
+			fields=["uom", "conversion_factor"],
+			order_by="idx",
+		)
+		stock_uom = frappe.db.get_value("Item", item_code, "stock_uom")
+		if stock_uom and not any(u.get("uom") == stock_uom for u in uoms):
+			uoms.insert(0, {"uom": stock_uom, "conversion_factor": 1.0})
+
+		return {
+			"item_code": item_code,
+			"prices": prices,
+			"uoms": uoms,
+			"stock_uom": stock_uom,
+			"pos_price_list": selling_price_list,
+		}
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "Get Item Prices Error")
+		frappe.throw(_("Error fetching item prices: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def update_item_price(item_price_name=None, item_code=None, price_list=None, uom=None, rate=None, selling=None):
+	"""
+	Update an existing Item Price record, or create a new one if it doesn't exist.
+	If item_price_name is provided, update that record directly.
+	Otherwise, look up by item_code + price_list + uom and update (or create if not found).
+	If selling is not provided, it is auto-detected from the price list settings.
+	"""
+	try:
+		if not frappe.has_permission("Item Price", "write"):
+			frappe.throw(_("You do not have permission to update Item Price"))
+
+		rate = flt(rate)
+		if rate < 0:
+			frappe.throw(_("Rate cannot be negative"))
+
+		if item_price_name:
+			# Update existing record directly
+			price_doc = frappe.get_doc("Item Price", item_price_name)
+			price_doc.price_list_rate = rate
+			price_doc.save()
+		else:
+			if not item_code or not price_list:
+				frappe.throw(_("Item code and price list are required"))
+
+			# Auto-detect selling/buying from price list if not specified
+			if selling is None:
+				pl_selling = frappe.db.get_value("Price List", price_list, "selling")
+				selling = cint(pl_selling)
+			else:
+				selling = cint(selling)
+
+			# Try to find existing price record
+			filters = {
+				"item_code": item_code,
+				"price_list": price_list,
+				"selling": selling,
+			}
+			if uom:
+				filters["uom"] = uom
+
+			existing_name = frappe.db.get_value("Item Price", filters)
+			if existing_name:
+				price_doc = frappe.get_doc("Item Price", existing_name)
+				price_doc.price_list_rate = rate
+				if uom:
+					price_doc.uom = uom
+				price_doc.save()
+			else:
+				# Create new price record
+				price_doc = frappe.new_doc("Item Price")
+				price_doc.item_code = item_code
+				price_doc.price_list = price_list
+				price_doc.price_list_rate = rate
+				price_doc.selling = selling
+				price_doc.buying = 1 if not selling else 0
+				if uom:
+					price_doc.uom = uom
+				# Get currency from price list
+				pl_currency = frappe.db.get_value("Price List", price_list, "currency")
+				if pl_currency:
+					price_doc.currency = pl_currency
+				price_doc.insert()
+
+		return {
+			"name": price_doc.name,
+			"price_list": price_doc.price_list,
+			"uom": price_doc.uom,
+			"price_list_rate": price_doc.price_list_rate,
+			"currency": price_doc.currency,
+		}
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "Update Item Price Error")
+		frappe.throw(_("Error updating item price: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def delete_item_price(item_price_name):
+	"""
+	Delete an Item Price record.
+	"""
+	try:
+		if not item_price_name:
+			frappe.throw(_("Item Price name is required"))
+
+		if not frappe.has_permission("Item Price", "delete"):
+			frappe.throw(_("You do not have permission to delete Item Price"))
+
+		frappe.delete_doc("Item Price", item_price_name)
+		return {"deleted": True}
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "Delete Item Price Error")
+		frappe.throw(_("Error deleting item price: {0}").format(str(e)))
+
+
+@frappe.whitelist()
 def get_item_stock(item_code, warehouse):
 	"""Get real-time stock for item"""
 	try:

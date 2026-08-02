@@ -44,6 +44,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		allow_duplicate_customer_names: 0,
 		allow_customer_payment: 0,
 		allow_supplier_payment: 0,
+		allow_stock_lookup: 0,
 		fetch_coupon: 0,
 		// Printing
 		allow_print_last_invoice: 0,
@@ -172,6 +173,9 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	)
 	const allowSupplierPayment = computed(() =>
 		Boolean(settings.value.allow_supplier_payment),
+	)
+	const allowStockLookup = computed(() =>
+		Boolean(settings.value.allow_stock_lookup),
 	)
 	const fetchCoupon = computed(() => Boolean(settings.value.fetch_coupon))
 
@@ -339,6 +343,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			allow_duplicate_customer_names: 0,
 			allow_customer_payment: 0,
 			allow_supplier_payment: 0,
+			allow_stock_lookup: 0,
 			fetch_coupon: 0,
 			allow_print_last_invoice: 0,
 			silent_print: 0,
@@ -459,6 +464,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		allowDuplicateCustomerNames,
 		allowCustomerPayment,
 		allowSupplierPayment,
+		allowStockLookup,
 		fetchCoupon,
 
 		// Computed - Printing

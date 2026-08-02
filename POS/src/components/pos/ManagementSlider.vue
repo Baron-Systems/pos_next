@@ -20,6 +20,7 @@
 
 		<!-- Products -->
 		<button
+			v-if="settingsStore.allowStockLookup"
 			@click="handleMenuClick('products')"
 			:class="[
 				'w-12 h-12 rounded-lg flex items-center justify-center transition-all relative group',
