@@ -218,9 +218,7 @@ export function createOptimizedClickHandler(handler, options = {}) {
 	let touchStartTime = 0
 	let touchMoved = false
 	let touchHandled = false
-	let touchEndTime = 0
 	const MOVE_THRESHOLD = 10
-	const GHOST_CLICK_THRESHOLD = 500 // Time window to ignore click after touch
 	let startX = 0
 	let startY = 0
 
@@ -264,9 +262,12 @@ export function createOptimizedClickHandler(handler, options = {}) {
 			// Only trigger if touch was quick and didn't move
 			const touchDuration = Date.now() - touchStartTime
 			if (!touchMoved && touchDuration < 500) {
-				event.preventDefault() // Prevent mouse events
 				touchHandled = true
-				touchEndTime = Date.now()
+
+				if (event.cancelable) {
+					event.preventDefault() // Prevent synthetic mouse events (including click)
+				}
+				event.stopPropagation()
 
 				// Use requestAnimationFrame for smooth execution
 				requestAnimationFrame(() => {
@@ -279,11 +280,13 @@ export function createOptimizedClickHandler(handler, options = {}) {
 		},
 
 		click: (event) => {
-			// Prevent ghost clicks after touch events
-			const timeSinceTouchEnd = Date.now() - touchEndTime
-			if (touchHandled && timeSinceTouchEnd < GHOST_CLICK_THRESHOLD) {
-				// This is a ghost click from a touch event - ignore it
-				event.preventDefault()
+			// If this click is the synthetic result of a touch we already handled, block it
+			if (touchHandled) {
+				touchHandled = false
+
+				if (event.cancelable) {
+					event.preventDefault()
+				}
 				event.stopPropagation()
 				return
 			}
@@ -294,18 +297,6 @@ export function createOptimizedClickHandler(handler, options = {}) {
 			})
 		}
 	}
-
-	// Reset touchHandled flag after GHOST_CLICK_THRESHOLD
-	// to prevent indefinite blocking of mouse clicks
-	const resetTouchHandled = () => {
-		if (touchHandled) {
-			const timeSinceTouchEnd = Date.now() - touchEndTime
-			if (timeSinceTouchEnd >= GHOST_CLICK_THRESHOLD) {
-				touchHandled = false
-			}
-		}
-	}
-	setInterval(resetTouchHandled, GHOST_CLICK_THRESHOLD)
 
 	return handlers
 }
