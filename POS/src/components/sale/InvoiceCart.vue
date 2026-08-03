@@ -1002,23 +1002,21 @@
 		<div class="p-1.5 sm:p-2 bg-white border-t border-gray-200">
 			<!-- Summary Details -->
 			<div v-if="items.length > 0" class="mb-1.5">
-				<div class="flex items-center justify-between text-xs text-gray-600 mb-0.5">
-					<span class="font-medium">{{ __("عدد الأصناف") }}</span>
-					<span class="font-bold text-gray-900 text-center min-w-[60px]">{{
-						items.length
-					}}</span>
-				</div>
-				<div class="flex items-center justify-between text-xs text-gray-600 mb-0.5">
-					<span class="font-medium">{{ __("Total Quantity") }}</span>
-					<span class="font-bold text-gray-900 text-center min-w-[60px]">{{
-						formatQuantity(totalQuantity)
-					}}</span>
-				</div>
-				<div class="flex items-center justify-between text-xs text-gray-600">
-					<span class="font-medium">{{ __("Subtotal") }}</span>
-					<span class="font-bold text-gray-900 text-center min-w-[60px]">{{
-						formatCurrency(displaySubtotal)
-					}}</span>
+				<div class="flex items-center justify-between text-xs text-gray-600 gap-2">
+					<div class="flex flex-col items-center flex-1">
+						<span class="font-medium">{{ __("عدد الأصناف") }}</span>
+						<span class="font-bold text-gray-900">{{ items.length }}</span>
+					</div>
+					<div class="w-px h-8 bg-gray-200"></div>
+					<div class="flex flex-col items-center flex-1">
+						<span class="font-medium">{{ __("Total Quantity") }}</span>
+						<span class="font-bold text-gray-900">{{ formatQuantity(totalQuantity) }}</span>
+					</div>
+					<div class="w-px h-8 bg-gray-200"></div>
+					<div class="flex flex-col items-center flex-1">
+						<span class="font-medium">{{ __("Subtotal") }}</span>
+						<span class="font-bold text-gray-900">{{ formatCurrency(displaySubtotal) }}</span>
+					</div>
 				</div>
 			</div>
 
@@ -1057,7 +1055,7 @@
 					}}</span>
 					<div class="flex items-center gap-2">
 						<span
-							class="text-lg sm:text-xl font-extrabold text-blue-600 text-center min-w-[60px]"
+							class="text-xl sm:text-2xl font-black text-blue-600 text-center min-w-[60px]"
 						>
 							{{ formatCurrency(displayGrandTotal) }}
 						</span>
