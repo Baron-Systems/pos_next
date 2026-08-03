@@ -214,15 +214,18 @@ def get_pos_settings(pos_profile=None):
 		frappe.db.get_single_value("Stock Settings", "allow_negative_stock") or 0
 	)
 
-	# Inject allow_customer_payment and allow_supplier_payment from POS Profile (per-profile settings)
-	# These control the visibility of the customer/supplier payment buttons in the POS UI
+	# Inject allow_customer_payment, allow_supplier_payment and allow_stock_lookup from POS Profile
+	# Use frappe.db.get_value to bypass per-user permission checks (cashiers may not have POS Profile read access)
 	try:
-		pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
-		settings["allow_customer_payment"] = cint(pos_profile_doc.allow_customer_payment or 0)
-		settings["allow_supplier_payment"] = cint(pos_profile_doc.allow_supplier_payment or 0)
-		settings["allow_stock_lookup"] = cint(pos_profile_doc.posa_allow_stock_lookup or 0)
+		profile_vals = frappe.db.get_value(
+			"POS Profile", pos_profile,
+			["allow_customer_payment", "allow_supplier_payment", "posa_allow_stock_lookup"],
+			as_dict=True
+		) or {}
+		settings["allow_customer_payment"] = cint(profile_vals.get("allow_customer_payment") or 0)
+		settings["allow_supplier_payment"] = cint(profile_vals.get("allow_supplier_payment") or 0)
+		settings["allow_stock_lookup"] = cint(profile_vals.get("posa_allow_stock_lookup") or 0)
 	except Exception:
-		# If POS Profile doesn't exist or field doesn't exist, default to 0
 		settings["allow_customer_payment"] = 0
 		settings["allow_supplier_payment"] = 0
 		settings["allow_stock_lookup"] = 0
