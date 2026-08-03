@@ -2106,9 +2106,8 @@ async function selectUom(item, newUom) {
 	}
 
 	const currentUom = item.uom || item.stock_uom;
-	await cartStore.changeItemUOM(item.item_code, newUom, currentUom);
 	openUomDropdown.value = null;
-	emit("update-uom", item.item_code, newUom);
+	emit("update-uom", item.item_code, newUom, currentUom);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

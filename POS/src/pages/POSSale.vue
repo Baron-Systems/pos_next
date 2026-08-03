@@ -359,7 +359,7 @@
 											offersDialogRef.value
 										)
 								"
-								@update-uom="cartStore.changeItemUOM"
+								@update-uom="handleUpdateUom"
 								@edit-item="handleEditItem"
 								@view-shift="uiStore.showOpenShiftDialog = true"
 								@show-drafts="uiStore.showDraftDialog = true"
@@ -2463,6 +2463,12 @@ async function handleOptionSelected(option) {
 function handleCloseShift() {
 	uiStore.showCloseShiftDialog = true;
 }
+
+async function handleUpdateUom(itemCode, newUom, oldUom) {
+	await cartStore.changeItemUOM(itemCode, newUom, oldUom);
+	handleRefocusBarcode();
+}
+
 function handleRefocusBarcode() {
 	console.log('handleRefocusBarcode called, ref:', itemsSelectorRef.value);
 	// Delay to let the browser/dialog focus restoration settle before refocusing barcode
