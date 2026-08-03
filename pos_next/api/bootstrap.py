@@ -193,14 +193,21 @@ def get_pos_settings(pos_profile):
 		if not pos_settings:
 			pos_settings = get_default_pos_settings()
 
-		# Inject allow_customer_payment and allow_supplier_payment from POS Profile
+		# Inject allow_customer_payment, allow_supplier_payment and allow_stock_lookup from POS Profile
+		# Use frappe.db.get_value to bypass per-user permission checks
 		try:
-			profile_doc = frappe.get_doc("POS Profile", pos_profile)
-			pos_settings["allow_customer_payment"] = int(profile_doc.get("allow_customer_payment", 0))
-			pos_settings["allow_supplier_payment"] = int(profile_doc.get("allow_supplier_payment", 0))
+			profile_vals = frappe.db.get_value(
+				"POS Profile", pos_profile,
+				["allow_customer_payment", "allow_supplier_payment", "posa_allow_stock_lookup"],
+				as_dict=True
+			) or {}
+			pos_settings["allow_customer_payment"] = int(profile_vals.get("allow_customer_payment") or 0)
+			pos_settings["allow_supplier_payment"] = int(profile_vals.get("allow_supplier_payment") or 0)
+			pos_settings["allow_stock_lookup"] = int(profile_vals.get("posa_allow_stock_lookup") or 0)
 		except Exception:
 			pos_settings["allow_customer_payment"] = 0
 			pos_settings["allow_supplier_payment"] = 0
+			pos_settings["allow_stock_lookup"] = 0
 
 		return pos_settings
 	except Exception:
@@ -224,6 +231,7 @@ def get_default_pos_settings():
 		"allow_partial_payment": 0,
 		"allow_customer_payment": 0,
 		"allow_supplier_payment": 0,
+		"allow_stock_lookup": 0,
 		"decimal_precision": "2",
 		"allow_negative_stock": 0,
 		"enable_sales_persons": "Disabled",
