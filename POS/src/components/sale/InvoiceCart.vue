@@ -1495,7 +1495,7 @@ const activeUomItem = computed(() => {
 });
 
 // Additional discount (above payment buttons) - local state for type and value
-const additionalDiscountType = ref(settingsStore.usePercentageDiscount ? "percentage" : "amount");
+const additionalDiscountType = ref("amount");
 const localAdditionalDiscount = ref(0);
 const isAdditionalDiscountInputFocused = ref(false);
 

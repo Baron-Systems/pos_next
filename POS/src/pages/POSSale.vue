@@ -1130,7 +1130,7 @@ const logoutAfterClose = ref(false);
 const editCustomer = ref(null); // Customer being edited (null for create mode)
 const showClearCacheDialog = ref(false);
 const clearCacheOverlayRef = ref(null);
-const showSuccessDialogEnabled = ref(true); // Control whether success dialog should show
+const showSuccessDialogEnabled = ref(false); // Control whether success dialog should show
 
 // Debounce timer for offer reapplication
 const offerReapplyTimer = ref(null);
