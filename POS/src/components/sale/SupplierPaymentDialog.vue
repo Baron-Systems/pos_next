@@ -34,6 +34,7 @@
 <Input
 v-model.number="paymentAmount"
 type="number"
+class="payment-amount-input"
 :placeholder="__('أدخل المبلغ')"
 step="0.01"
 @keyup.enter="executePayment"
@@ -161,7 +162,10 @@ emit("edit-supplier", sup)
 }
 
 function handlePaymentFromSection(sup) {
-// Payment button clicked inside SupplierSection; do nothing extra here
+	const input = document.querySelector('.payment-amount-input input')
+	if (input) {
+		input.focus()
+	}
 }
 
 watch(show, (val) => {

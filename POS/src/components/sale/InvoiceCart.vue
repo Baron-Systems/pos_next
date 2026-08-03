@@ -1055,11 +1055,23 @@
 					<span class="text-sm font-extrabold text-gray-900">{{
 						__("Grand Total")
 					}}</span>
-					<span
-						class="text-lg sm:text-xl font-extrabold text-blue-600 text-center min-w-[60px]"
-					>
-						{{ formatCurrency(displayGrandTotal) }}
-					</span>
+					<div class="flex items-center gap-2">
+						<span
+							class="text-lg sm:text-xl font-extrabold text-blue-600 text-center min-w-[60px]"
+						>
+							{{ formatCurrency(displayGrandTotal) }}
+						</span>
+						<button
+							type="button"
+							@click="$emit('print-last-invoice')"
+							class="w-8 h-8 flex items-center justify-center bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg transition-colors touch-manipulation flex-shrink-0"
+							:title="__('Print last invoice')"
+						>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+							</svg>
+						</button>
+					</div>
 				</div>
 			</div>
 
@@ -1450,6 +1462,7 @@ const emit = defineEmits([
 	"close-shift", // () - Close current shift
 	"update-additional-discount", // (amount: number) - Set additional discount amount
 	"refocus-barcode", // () - Request parent to refocus barcode input
+	"print-last-invoice", // () - Print the last created invoice
 	// "create-sales-order", // () - Create Sales Order // Removed as per instruction
 ]);
 

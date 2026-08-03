@@ -38,9 +38,9 @@ export const usePOSUIStore = defineStore("posUI", () => {
 	const errorRetryAction = ref(null)
 	const errorRetryActionData = ref(null)
 
-	// Success dialog state
-	const lastInvoiceName = ref("")
-	const lastInvoiceTotal = ref(0)
+	// Success dialog state - persisted in localStorage to survive refresh
+	const lastInvoiceName = ref(localStorage.getItem("pos_last_invoice_name") || "")
+	const lastInvoiceTotal = ref(Number(localStorage.getItem("pos_last_invoice_total") || 0))
 	const lastPaidAmount = ref(0)
 
 	// Customer dialog state
@@ -100,6 +100,8 @@ export const usePOSUIStore = defineStore("posUI", () => {
 		lastInvoiceName.value = invoiceName
 		lastInvoiceTotal.value = total
 		lastPaidAmount.value = paidAmount !== null ? paidAmount : total
+		localStorage.setItem("pos_last_invoice_name", invoiceName)
+		localStorage.setItem("pos_last_invoice_total", String(total))
 		showSuccessDialog.value = true
 	}
 

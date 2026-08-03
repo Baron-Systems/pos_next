@@ -367,6 +367,7 @@
 								@show-return="uiStore.showReturnDialog = true"
 								@close-shift="handleCloseShift()"
 								@refocus-barcode="handleRefocusBarcode"
+							@print-last-invoice="handlePrintLastInvoice"
 							/>
 						</div>
 					</keep-alive>
@@ -3028,6 +3029,12 @@ async function loadInvoiceHistoryData() {
 function handleViewInvoice(invoice) {
 	selectedInvoiceForView.value = invoice.name || invoice;
 	showInvoiceDetail.value = true;
+}
+
+async function handlePrintLastInvoice() {
+	if (uiStore.lastInvoiceName) {
+		await handlePrintInvoice({ name: uiStore.lastInvoiceName });
+	}
 }
 
 // Centralized print handler - uses printInvoice.js utilities
