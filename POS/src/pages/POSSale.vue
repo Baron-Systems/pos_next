@@ -658,6 +658,14 @@
 				@load-order="handleLoadSalesOrder"
 			/>
 
+			<!-- Shift Password Dialog (entry verification) -->
+			<ShiftPasswordDialog
+				v-model="showEntryPasswordDialog"
+				:pos-profile="entryPasswordProfile"
+				@verified="handleEntryPasswordVerified"
+				@cancelled="handleEntryPasswordCancelled"
+			/>
+
 			<!-- Shift Notes Dialog -->
 			<ShiftNotesDialog
 				v-model="showShiftNotesDialog"
@@ -1006,6 +1014,7 @@
 <script setup>
 import ShiftClosingDialog from "@/components/ShiftClosingDialog.vue";
 import ShiftOpeningDialog from "@/components/ShiftOpeningDialog.vue";
+import ShiftPasswordDialog from "@/components/ShiftPasswordDialog.vue";
 import ShiftNotesDialog from "@/components/sale/ShiftNotesDialog.vue";
 import ClearCacheOverlay from "@/components/common/ClearCacheOverlay.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -1174,6 +1183,8 @@ const showSalesOrdersDialog = ref(false);
 const showCurrencyExchangeDialog = ref(false);
 const showCreateSupplierDialog = ref(false);
 const showShiftNotesDialog = ref(false);
+const showEntryPasswordDialog = ref(false);
+const entryPasswordProfile = ref("");
 
 // Invoice history data (used by InvoiceManagement component)
 const invoiceHistoryData = ref([]);
@@ -1385,6 +1396,10 @@ onMounted(async () => {
 		if (!hasShift) {
 			uiStore.showOpenShiftDialog = true;
 		} else {
+			// Shift is open - require password before allowing access
+			entryPasswordProfile.value = shiftStore.profileName || "";
+			showEntryPasswordDialog.value = true;
+
 			// Set POS profile and load tax rules
 			if (shiftStore.currentProfile) {
 				cartStore.posProfile = shiftStore.profileName;
@@ -1809,6 +1824,16 @@ function handleShiftClosed() {
 			uiStore.showOpenShiftDialog = true;
 		}, 500);
 	}
+}
+
+function handleEntryPasswordVerified() {
+	showSuccess(__("Shift verified. Welcome back!"));
+}
+
+function handleEntryPasswordCancelled() {
+	// Password cancelled - log out the user
+	uiStore.resetAllDialogs();
+	session.logout.submit();
 }
 
 function handleItemSelected(item, autoAdd = false) {

@@ -216,6 +216,13 @@
     :opening-shift="existingShift?.pos_opening_shift?.name"
     @shift-closed="handleExistingShiftClosed"
   />
+
+  <ShiftPasswordDialog
+    v-model="showPasswordDialog"
+    :pos-profile="passwordProfileName"
+    @verified="handlePasswordVerified"
+    @cancelled="handlePasswordCancelled"
+  />
 </template>
 
 <script setup>
@@ -225,6 +232,7 @@ import { computed, ref, watch } from "vue"
 import { useShift } from "../composables/useShift"
 import { useFormatters } from "../composables/useFormatters"
 import ShiftClosingDialog from "./ShiftClosingDialog.vue"
+import ShiftPasswordDialog from "./ShiftPasswordDialog.vue"
 import TranslatedHTML from "./common/TranslatedHTML.vue"
 
 const props = defineProps({
@@ -250,6 +258,9 @@ const existingShift = ref(null)
 const showClosingDialog = ref(false)
 const closingExistingShift = ref(false)
 const restartProfileName = ref(null)
+const showPasswordDialog = ref(false)
+const passwordProfileName = ref("")
+const pendingAction = ref(null)
 
 // Get POS Profiles
 const profilesResource = createResource({
@@ -355,6 +366,14 @@ async function nextStep() {
 async function openShift() {
 	if (!selectedProfile.value) return
 
+	passwordProfileName.value = selectedProfile.value.name
+	pendingAction.value = "open"
+	showPasswordDialog.value = true
+}
+
+async function openShiftAfterPassword() {
+	if (!selectedProfile.value) return
+
 	// Prepare balance details
 	const balance_details = paymentMethods.value.map((method) => ({
 		mode_of_payment: method.mode_of_payment,
@@ -388,6 +407,12 @@ async function openShift() {
 }
 
 function resumeShift() {
+	passwordProfileName.value = existingShift.value?.pos_profile?.name || ""
+	pendingAction.value = "resume"
+	showPasswordDialog.value = true
+}
+
+function resumeShiftAfterPassword() {
 	emit("shift-opened")
 	closeDialog("resumed")
 }
@@ -404,6 +429,20 @@ function closeAndOpenNew() {
 function closeDialog(reason) {
 	open.value = false
 	emit("dialog-closed", { reason })
+}
+
+function handlePasswordVerified() {
+	const action = pendingAction.value
+	pendingAction.value = null
+	if (action === "open") {
+		openShiftAfterPassword()
+	} else if (action === "resume") {
+		resumeShiftAfterPassword()
+	}
+}
+
+function handlePasswordCancelled() {
+	pendingAction.value = null
 }
 
 async function handleExistingShiftClosed() {

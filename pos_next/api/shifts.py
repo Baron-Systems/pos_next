@@ -326,3 +326,26 @@ def delete_shift_note(note_id):
 			return {"status": "success"}
 
 	frappe.throw(_("لم يتم العثور على الملاحظة"))
+
+
+@frappe.whitelist()
+def verify_shift_password(pos_profile, password):
+	"""Verify the shift password for a POS Profile"""
+	if not pos_profile:
+		frappe.throw(_("POS Profile is required"))
+
+	stored_password = frappe.db.get_value(
+		"POS Profile", pos_profile, "posa_shift_password"
+	)
+
+	if stored_password is None:
+		stored_password = 123456
+
+	try:
+		entered = int(password)
+	except (TypeError, ValueError):
+		return {"verified": False, "message": _("Invalid password format")}
+
+	if entered == int(stored_password):
+		return {"verified": True}
+	return {"verified": False, "message": _("Incorrect shift password")}

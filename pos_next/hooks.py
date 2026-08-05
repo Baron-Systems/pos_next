@@ -103,7 +103,8 @@ fixtures = [
 					"Mode of Payment-is_wallet_payment",
 					"POS Profile-posa_allowed_price_lists",
 					"POS Profile-allow_supplier_payment",
-"POS Profile-posa_allow_stock_lookup"
+"POS Profile-posa_allow_stock_lookup",
+"POS Profile-posa_shift_password"
 				]
 			]
 		]
