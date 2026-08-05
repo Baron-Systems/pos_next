@@ -9,6 +9,7 @@
   "posting_date",
   "column_break_3",
   "customer",
+  "invoice_type",
   "grand_total",
   "transaction_currency",
   "transaction_amount"
@@ -43,6 +44,13 @@
    "options": "Customer",
    "read_only": 1,
    "reqd": 1
+  },
+  {
+   "fieldname": "invoice_type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Invoice Type",
+   "read_only": 1
   },
   {
    "fetch_from": "pos_invoice.grand_total",

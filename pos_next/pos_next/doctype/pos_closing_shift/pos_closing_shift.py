@@ -501,6 +501,7 @@ def _process_invoice(invoice, invoice_field, company_currency, cash_mode, paymen
         "is_return": is_return,
         "return_against": invoice.get("return_against") if is_return else None,
         "payment_status": _get_invoice_payment_status(invoice),
+        "invoice_type": _get_invoice_payment_status(invoice),
     })
 
     # Update summary totals

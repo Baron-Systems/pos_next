@@ -102,12 +102,21 @@ function set_form_payments_data(data, frm) {
 
 function add_to_pos_transaction(d, frm) {
         const conversion_rate = get_conversion_rate(d);
+        const paid = Math.abs(flt(d.paid_amount || 0));
+        const outstanding = Math.abs(flt(d.outstanding_amount || 0));
+        let invoice_type = __("Credit");
+        if (outstanding <= 0.01) {
+                invoice_type = __("Cash");
+        } else if (paid > 0.01) {
+                invoice_type = __("Partial Payment");
+        }
         const child = {
                 posting_date: d.posting_date,
                 grand_total: get_base_value(d, "grand_total", "base_grand_total", conversion_rate),
                 transaction_currency: d.currency,
                 transaction_amount: flt(d.grand_total),
                 customer: d.customer,
+                invoice_type: invoice_type,
         };
         if (d.doctype === "POS Invoice") {
                 child.pos_invoice = d.name;

@@ -2325,6 +2325,13 @@ async function handlePaymentCompleted(paymentData, options = {}) {
 				}
 			}
 		}
+
+		// Reset quick payment method to default after successful payment
+		const allMethods = bootstrapStore.getPreloadedPaymentMethods() || [];
+		if (allMethods.length > 0) {
+			const defaultMethod = allMethods.find((m) => m.default) || allMethods[0];
+			selectedQuickPaymentMethod.value = defaultMethod;
+		}
 	} catch (error) {
 		log.error("Error submitting invoice:", error);
 
