@@ -1149,10 +1149,10 @@
 						<button
 							type="button"
 							@click="$emit('quick-cash-pay')"
-							:disabled="items.length === 0"
+							:disabled="items.length === 0 || !customerIsFavorite"
 							:class="[
 								'flex-1 py-2.5 px-2 rounded-lg font-bold text-xs transition-all inline-flex items-center justify-center gap-1.5 touch-manipulation overflow-visible',
-								items.length === 0
+								items.length === 0 || !customerIsFavorite
 									? 'bg-gray-300 text-gray-500 cursor-not-allowed'
 									: 'bg-green-600 hover:bg-green-700 active:bg-green-800 text-white shadow active:scale-[0.98]',
 							]"
@@ -1168,12 +1168,9 @@
 							v-if="hasMultiplePaymentMethods"
 							type="button"
 							@click.stop="$emit('switch-payment-method')"
-							:disabled="items.length === 0"
 							:class="[
 								'w-8 flex-shrink-0 rounded-lg font-bold text-xs transition-all inline-flex items-center justify-center touch-manipulation overflow-visible',
-								items.length === 0
-									? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-									: 'bg-green-700 hover:bg-green-800 active:bg-green-900 text-white shadow active:scale-[0.98]',
+								'bg-green-700 hover:bg-green-800 active:bg-green-900 text-white shadow active:scale-[0.98]',
 							]"
 							:title="__('Switch payment method')"
 							:aria-label="__('Switch payment method')"
@@ -1187,10 +1184,10 @@
 					<button
 						type="button"
 						@click="$emit('pay-later-all-debt')"
-						:disabled="items.length === 0"
+						:disabled="items.length === 0 || customerIsFavorite"
 						:class="[
 							'flex-1 min-w-[6.5rem] py-2.5 px-2 rounded-lg font-semibold text-xs transition-all inline-flex items-center justify-center gap-1.5 touch-manipulation overflow-visible',
-							items.length === 0
+							items.length === 0 || customerIsFavorite
 								? 'bg-gray-300 text-gray-500 cursor-not-allowed'
 								: 'bg-amber-600 text-white hover:bg-amber-700 active:bg-amber-800 shadow-md hover:shadow-lg',
 						]"
@@ -1425,6 +1422,10 @@ const props = defineProps({
 	lastInvoiceTotal: {
 		type: Number,
 		default: 0,
+	},
+	customerIsFavorite: {
+		type: Boolean,
+		default: false,
 	},
 });
 

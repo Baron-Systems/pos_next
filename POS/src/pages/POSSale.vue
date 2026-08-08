@@ -333,6 +333,7 @@
 								:applied-offers="cartStore.appliedOffers"
 								:warehouses="profileWarehouses"
 								:selected-payment-method="selectedQuickPaymentMethod"
+								:customer-is-favorite="customerIsFavorite"
 								:last-invoice-total="uiStore.lastInvoiceTotal"
 								@update-quantity="cartStore.updateItemQuantity"
 								@update-additional-discount="handleAdditionalDiscountUpdate"
@@ -1079,6 +1080,9 @@ const showSupplierPaymentDialog = ref(false);
 const supplier = ref(null);
 const editingSupplier = ref(null);
 const selectedQuickPaymentMethod = ref(null);
+const customerIsFavorite = computed(() =>
+	customerSearchStore.isFavoriteCustomer(cartStore.customer?.name || cartStore.customer),
+);
 
 // Watch bootstrap data to auto-initialize payment method if it loads after mount
 watch(
@@ -3212,11 +3216,21 @@ function handleCustomerPayment(customer) {
 
 function handleCustomerPaymentCreated(result) {
 	showSuccess(__("Payment completed and balance updated"));
+	// Reset quick payment method to default after customer payment
+	const allMethods = bootstrapStore.getPreloadedPaymentMethods() || [];
+	if (allMethods.length > 0) {
+		selectedQuickPaymentMethod.value = allMethods.find((m) => m.default) || allMethods[0];
+	}
 }
 
 function handleSupplierPaymentCreated(result) {
 	showSuccess(__("Supplier payment created: {0}", [result?.payment_entry || result?.name]));
 	showSupplierPaymentDialog.value = false;
+	// Reset quick payment method to default after supplier payment
+	const allMethods = bootstrapStore.getPreloadedPaymentMethods() || [];
+	if (allMethods.length > 0) {
+		selectedQuickPaymentMethod.value = allMethods.find((m) => m.default) || allMethods[0];
+	}
 }
 
 // Optimized tab switching for mobile with RAF for smooth transitions
