@@ -1,7 +1,7 @@
 <template>
 	<div class="flex flex-col h-full bg-gray-50">
 		<!-- Item Groups Filter Tabs -->
-		<div class="px-1.5 sm:px-3 pt-1.5 sm:pt-3 pb-1.5 sm:pb-2 bg-white border-b border-gray-200">
+		<div v-if="!compact" class="px-1.5 sm:px-3 pt-1.5 sm:pt-3 pb-1.5 sm:pb-2 bg-white border-b border-gray-200">
 			<div class="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide snap-x snap-mandatory">
 				<button
 					@click="itemStore.setSelectedItemGroup(null)"
@@ -34,7 +34,7 @@
 		</div>
 
 		<!-- Cache Sync Indicator -->
-		<div v-if="cacheSyncing" class="px-1.5 sm:px-3 py-1 bg-blue-50 border-b border-blue-200">
+		<div v-if="!compact && cacheSyncing" class="px-1.5 sm:px-3 py-1 bg-blue-50 border-b border-blue-200">
 			<div class="flex items-center justify-center gap-2 text-[10px] sm:text-xs text-blue-700">
 				<div class="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
 				<span>{{ __('Syncing catalog in background... {0} items cached', [cacheStats.items]) }}</span>
@@ -42,11 +42,12 @@
 		</div>
 
 		<!-- Search Bar: Barcode (auto-clear) + Manual search (no auto-clear) -->
-		<div class="px-1.5 sm:px-3 py-1.5 sm:py-2 bg-white border-b border-gray-200">
-			<div class="flex flex-row-reverse items-center gap-1 sm:gap-2">
+		<Teleport to="#cart-only-search-target" :disabled="!compact">
+			<div :class="compact ? 'bg-transparent border-0' : 'px-1.5 sm:px-3 py-1.5 sm:py-2 bg-white border-b border-gray-200'">
+			<div :class="compact ? 'flex flex-row items-center gap-1 sm:gap-2' : 'flex flex-row-reverse items-center gap-1 sm:gap-2'">
 				<div class="flex flex-1 gap-1 sm:gap-2 min-w-0">
 					<!-- Manual search: for typing, never auto-clears -->
-					<div class="relative flex-1 min-w-0">
+					<div v-if="!compact" class="relative flex-1 min-w-0">
 						<div class="absolute inset-y-0 start-2 sm:start-3 flex items-center pointer-events-none">
 							<svg class="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -102,7 +103,7 @@
 					</div>
 				</div>
 				<!-- Scanner / Auto toggles (optional, keep for manual search behavior) -->
-				<div class="flex items-center gap-0.5 flex-shrink-0">
+				<div v-if="!compact" class="flex items-center gap-0.5 flex-shrink-0">
 					<button
 						@click="toggleBarcodeScanner"
 						:class="[
@@ -131,7 +132,7 @@
 						<span class="hidden xs:inline">{{ __('Auto') }}</span>
 					</button>
 				</div>
-				<div class="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5 flex-shrink-0">
+				<div v-if="!compact" class="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5 flex-shrink-0">
 					<button
 						@click="setViewMode('grid')"
 						:class="[
@@ -161,7 +162,7 @@
 				</div>
 
 				<!-- Sort Dropdown -->
-				<div class="relative z-50">
+				<div v-if="!compact" class="relative z-50">
 					<button
 						@click="toggleSortDropdown"
 						data-sort-button
@@ -246,7 +247,9 @@
 				</div>
 			</div>
 		</div>
+		</Teleport>
 
+		<template v-if="!compact">
 		<!-- Initial Loading State - Only for first load -->
 		<div v-if="loading && !filteredItems" class="flex-1 flex items-center justify-center p-3">
 			<div class="text-center py-8">
@@ -742,6 +745,7 @@
 				</div>
 			</div>
 		</div>
+	</template>
 	</div>
 
 	<!-- Warehouse Availability Dialog -->
@@ -783,6 +787,10 @@ const props = defineProps({
 	currency: {
 		type: String,
 		default: "USD",
+	},
+	compact: {
+		type: Boolean,
+		default: false,
 	},
 })
 

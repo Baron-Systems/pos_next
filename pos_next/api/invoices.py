@@ -436,7 +436,7 @@ def update_invoice(data):
         if doctype == "Sales Invoice" and invoice_doc.get('payments'):
             invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
             invoice_doc.base_paid_amount = flt(sum(p.base_amount or 0 for p in invoice_doc.payments))
-            invoice_doc.outstanding_amount = flt(invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
+            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
 
         pos_profile_doc = None
         if pos_profile:
@@ -494,7 +494,7 @@ def update_invoice(data):
         if doctype == "Sales Invoice" and invoice_doc.get('payments'):
             invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
             invoice_doc.base_paid_amount = flt(sum(p.base_amount or 0 for p in invoice_doc.payments))
-            invoice_doc.outstanding_amount = flt(invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
+            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
 
         # Validate return items if this is a return invoice
         if (data.get("is_return") or invoice_doc.get("is_return")) and invoice_doc.get(
@@ -642,7 +642,7 @@ def update_invoice(data):
             invoice_doc.base_paid_amount = flt(
                 sum(p.base_amount or 0 for p in invoice_doc.payments)
             )
-            invoice_doc.outstanding_amount = flt(invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
+            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
 
         # Validate and track POS Coupon if coupon_code is provided
         coupon_code = data.get("coupon_code")
@@ -705,7 +705,7 @@ def update_invoice(data):
             if invoice_doc.get('payments'):
                 invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
                 invoice_doc.base_paid_amount = flt(sum(p.base_amount or 0 for p in invoice_doc.payments))
-            invoice_doc.outstanding_amount = flt(invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
+            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
 
         return invoice_doc.as_dict()
     except Exception as e:
@@ -1054,7 +1054,7 @@ def submit_invoice(invoice=None, data=None):
         if doctype == "Sales Invoice" and invoice_doc.get('payments'):
             invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
             invoice_doc.base_paid_amount = flt(sum(p.base_amount or 0 for p in invoice_doc.payments))
-            invoice_doc.outstanding_amount = flt(invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
+            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
 
         # Ensure update_stock is set for Sales Invoice
         if doctype == "Sales Invoice":
@@ -1099,7 +1099,7 @@ def submit_invoice(invoice=None, data=None):
             invoice_doc.base_paid_amount = flt(
                 sum(p.base_amount or 0 for p in invoice_doc.payments)
             )
-            invoice_doc.outstanding_amount = flt(invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
+            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
 
         # Handle sales team (multiple sales persons)
         sales_team_data = invoice.get("sales_team") or data.get("sales_team")

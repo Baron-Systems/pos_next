@@ -110,3 +110,28 @@ def is_wallet_payment_mode(mode_of_payment):
 		return False
 
 	return cint(frappe.get_cached_value("Mode of Payment", mode_of_payment, "is_wallet_payment"))
+
+
+@frappe.whitelist()
+def get_company_letterhead(company):
+	"""Get the default letterhead (header and footer) for a company."""
+	if not company:
+		frappe.throw(_("Company is required"))
+
+	default_letterhead = frappe.db.get_value("Company", company, "default_letter_head")
+	if not default_letterhead:
+		default_letterhead = frappe.db.get_value(
+			"Letter Head",
+			{"is_default": 1, "disabled": 0},
+			"name"
+		)
+
+	if not default_letterhead:
+		return {"content": "", "footer": ""}
+
+	lh = frappe.db.get_value("Letter Head", default_letterhead, ["content", "footer"], as_dict=True)
+	return {
+		"name": default_letterhead,
+		"content": lh.get("content") or "",
+		"footer": lh.get("footer") or "",
+	}

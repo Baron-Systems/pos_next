@@ -1,7 +1,7 @@
 import { call } from "@/utils/apiWrapper"
 import { isOffline } from "@/utils/offline"
 import { offlineWorker } from "@/utils/offline/workerClient"
-import { cacheItems, getCachedVariants } from "@/utils/offline/items"
+import { cacheItems, getCachedVariants, getItemByBarcode } from "@/utils/offline/items"
 import { performanceConfig } from "@/utils/performanceConfig"
 import { logger } from "@/utils/logger"
 import { createResource } from "frappe-ui"
@@ -1327,7 +1327,20 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 				throw new Error("POS Profile not set")
 			}
 
-			log.debug("Calling searchByBarcode API", { posProfile: posProfile.value })
+			log.debug("Searching by barcode", { posProfile: posProfile.value, barcode })
+
+			// Offline/cache-first: if the items have been cached, resolve by barcode locally
+			if (isOffline() || cacheReady.value) {
+				const cachedItem = await getItemByBarcode(barcode)
+				if (cachedItem && cachedItem.item_code) {
+					log.debug("Found cached item by barcode", { barcode, item_code: cachedItem.item_code })
+					return cachedItem
+				}
+				// If offline and nothing cached, there is no network to fall back to
+				if (isOffline()) {
+					return null
+				}
+			}
 
 			const result = await searchByBarcodeResource.submit({
 				barcode: barcode,

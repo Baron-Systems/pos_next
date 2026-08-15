@@ -122,6 +122,59 @@
 			</div>
 		</button>
 
+		<!-- Cash to Card Transfer -->
+		<button
+			v-if="hasMultiplePaymentMethods"
+			@click="handleMenuClick('cash-to-card')"
+			:class="[
+				'w-12 h-12 rounded-lg flex items-center justify-center transition-all relative group',
+				activeMenu === 'cash-to-card'
+					? 'bg-emerald-100 text-emerald-600'
+					: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+			]"
+			:title="__('تحويل نقدي إلى بطاقة')"
+		>
+			<FeatherIcon name="repeat" class="w-5 h-5" />
+			<div class="absolute start-full ms-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+				{{ __('تحويل نقدي إلى بطاقة') }}
+			</div>
+		</button>
+
+		<!-- Expenses -->
+		<button
+			v-if="settingsStore.allowShiftExpense"
+			@click="handleMenuClick('expenses')"
+			:class="[
+				'w-12 h-12 rounded-lg flex items-center justify-center transition-all relative group',
+				activeMenu === 'expenses'
+					? 'bg-rose-100 text-rose-600'
+					: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+			]"
+			:title="__('مصاريف الوردية')"
+		>
+			<FeatherIcon name="file-minus" class="w-5 h-5" />
+			<div class="absolute start-full ms-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+				{{ __('مصاريف الوردية') }}
+			</div>
+		</button>
+
+		<!-- Cart Only -->
+		<button
+			@click="emit('toggle-cart-only')"
+			:class="[
+				'w-12 h-12 rounded-lg flex items-center justify-center transition-all relative group',
+				cartOnly
+					? 'bg-blue-100 text-blue-600'
+					: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+			]"
+			:title="__('وضع السلة')"
+		>
+			<FeatherIcon name="columns" class="w-5 h-5" />
+			<div class="absolute start-full ms-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+				{{ __('وضع السلة') }}
+			</div>
+		</button>
+
 		<!-- Divider -->
 		<div class="w-8 border-t border-gray-200 my-2"></div>
 
@@ -168,8 +221,12 @@ import { FeatherIcon } from "frappe-ui"
 import { ref } from "vue"
 
 const settingsStore = usePOSSettingsStore()
-const props = defineProps({ showCurrencyExchange: { type: Boolean, default: false } })
-const emit = defineEmits(["menu-clicked"])
+const props = defineProps({
+	showCurrencyExchange: { type: Boolean, default: false },
+	hasMultiplePaymentMethods: { type: Boolean, default: false },
+	cartOnly: { type: Boolean, default: false },
+})
+const emit = defineEmits(["menu-clicked", "toggle-cart-only"])
 
 const activeMenu = ref("")
 

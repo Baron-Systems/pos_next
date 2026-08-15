@@ -219,16 +219,18 @@ def get_pos_settings(pos_profile=None):
 	try:
 		profile_vals = frappe.db.get_value(
 			"POS Profile", pos_profile,
-			["allow_customer_payment", "allow_supplier_payment", "posa_allow_stock_lookup"],
+			["allow_customer_payment", "allow_supplier_payment", "posa_allow_stock_lookup", "posa_allow_shift_expense"],
 			as_dict=True
 		) or {}
 		settings["allow_customer_payment"] = cint(profile_vals.get("allow_customer_payment") or 0)
 		settings["allow_supplier_payment"] = cint(profile_vals.get("allow_supplier_payment") or 0)
 		settings["allow_stock_lookup"] = cint(profile_vals.get("posa_allow_stock_lookup") or 0)
+		settings["allow_shift_expense"] = cint(profile_vals.get("posa_allow_shift_expense") or 0)
 	except Exception:
 		settings["allow_customer_payment"] = 0
 		settings["allow_supplier_payment"] = 0
 		settings["allow_stock_lookup"] = 0
+		settings["allow_shift_expense"] = 0
 
 	# Inject currency_setup for enabled currency exchange
 	if cint(settings.get("enable_currency_exchange")):

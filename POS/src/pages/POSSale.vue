@@ -180,9 +180,12 @@
 			>
 				<!-- Icon-Only Management Slider - Always Visible -->
 				<ManagementSlider
-				:show-currency-exchange="posSettingsStore.enableCurrencyExchange && posSettingsStore.hasCurrencySetup"
-				@menu-clicked="handleManagementMenuClick"
-			/>
+					:show-currency-exchange="posSettingsStore.enableCurrencyExchange && posSettingsStore.hasCurrencySetup"
+					:has-multiple-payment-methods="hasMultiplePaymentMethods"
+					:cart-only="cartOnly"
+					@menu-clicked="handleManagementMenuClick"
+					@toggle-cart-only="cartOnly = !cartOnly"
+				/>
 
 				<!-- Main Content Container -->
 				<div
@@ -263,6 +266,7 @@
 					<keep-alive>
 						<div
 							v-if="uiStore.isDesktop || uiStore.mobileActiveTab === 'items'"
+							v-show="!cartOnly"
 							:style="{
 								width: uiStore.isDesktop ? uiStore.leftPanelWidth + 'px' : '100%',
 							}"
@@ -277,6 +281,7 @@
 								:pos-profile="shiftStore.profileName"
 								:cart-items="cartStore.invoiceItems"
 								:currency="shiftStore.profileCurrency"
+								:compact="cartOnly"
 								@item-selected="handleItemSelected"
 							/>
 						</div>
@@ -284,7 +289,7 @@
 
 					<!-- Draggable Divider (Desktop Only) -->
 					<div
-						v-if="uiStore.isDesktop"
+						v-if="uiStore.isDesktop && !cartOnly"
 						ref="dividerRef"
 						role="separator"
 						aria-orientation="vertical"
@@ -651,6 +656,24 @@
 			@exchange-completed="handleExchangeCompleted"
 		/>
 
+		<!-- Cash to Card Transfer Dialog -->
+		<CashToCardTransferDialog
+			v-model="showCashToCardTransferDialog"
+			:company="shiftStore.profileCompany"
+			:payment-methods="paymentMethods"
+			:pos-opening-shift="shiftStore.currentShift?.name"
+			@transfer-created="handleTransferCreated"
+		/>
+
+		<!-- Expense Dialog -->
+		<ExpenseDialog
+			v-model="showExpenseDialog"
+			:company="shiftStore.profileCompany"
+			:payment-methods="paymentMethods"
+			:pos-opening-shift="shiftStore.currentShift?.name"
+			@expense-created="handleExpenseCreated"
+		/>
+
 		<!-- Sales Orders Dialog -->
 			<SalesOrdersDialog
 				v-model="showSalesOrdersDialog"
@@ -1015,6 +1038,8 @@ import ManagementSlider from "@/components/pos/ManagementSlider.vue";
 import POSHeader from "@/components/pos/POSHeader.vue";
 import BatchSerialDialog from "@/components/sale/BatchSerialDialog.vue";
 import CouponDialog from "@/components/sale/CouponDialog.vue";
+import CashToCardTransferDialog from "@/components/sale/CashToCardTransferDialog.vue";
+import ExpenseDialog from "@/components/sale/ExpenseDialog.vue";
 import CustomerPaymentDialog from "@/components/sale/CustomerPaymentDialog.vue";
 import CreateCustomerDialog from "@/components/sale/CreateCustomerDialog.vue";
 import CreateSupplierDialog from "@/components/sale/CreateSupplierDialog.vue";
@@ -1084,6 +1109,9 @@ const customerIsFavorite = computed(() =>
 	customerSearchStore.isFavoriteCustomer(cartStore.customer?.name || cartStore.customer),
 );
 
+const paymentMethods = computed(() => bootstrapStore.getPreloadedPaymentMethods() || []);
+const hasMultiplePaymentMethods = computed(() => paymentMethods.value.length > 1);
+
 // Watch bootstrap data to auto-initialize payment method if it loads after mount
 watch(
 	() => bootstrapStore.loaded,
@@ -1127,6 +1155,7 @@ const { isRTL } = useLocale();
 
 // Component refs
 const itemsSelectorRef = ref(null);
+const cartOnly = ref(false);
 const offersDialogRef = ref(null);
 const containerRef = ref(null);
 const dividerRef = ref(null);
@@ -1176,6 +1205,8 @@ const selectedInvoiceForView = ref(null);
 // Sales Orders dialog
 const showSalesOrdersDialog = ref(false);
 const showCurrencyExchangeDialog = ref(false);
+const showCashToCardTransferDialog = ref(false);
+const showExpenseDialog = ref(false);
 const showCreateSupplierDialog = ref(false);
 const showShiftNotesDialog = ref(false);
 
@@ -2289,6 +2320,9 @@ async function handlePaymentCompleted(paymentData, options = {}) {
 				// Refresh stock - Direct API (50-200ms), no Socket.IO lag!
 				await stockStore.refresh(soldItemCodes, shiftStore.profileWarehouse);
 
+				// Always track last invoice so the print/last-total buttons work
+				uiStore.setLastInvoice(invoiceName, invoiceTotal, paidAmount);
+
 				if (shiftStore.autoPrintEnabled || forcePrint) {
 					try {
 						await handlePrintInvoice({ name: invoiceName });
@@ -2985,6 +3019,14 @@ function handleExchangeCompleted(result) {
 	log.info('Currency exchange completed:', result);
 }
 
+function handleTransferCreated(result) {
+	log.info('Cash to card transfer completed:', result);
+}
+
+function handleExpenseCreated(result) {
+	log.info('Shift expense created:', result);
+}
+
 function handleManagementMenuClick(menuItem) {
 	if (menuItem === "promotions") {
 		showPromotionManagement.value = true;
@@ -3015,6 +3057,10 @@ function handleManagementMenuClick(menuItem) {
 		}
 	} else if (menuItem === "shift-notes") {
 		showShiftNotesDialog.value = true;
+	} else if (menuItem === "cash-to-card") {
+		showCashToCardTransferDialog.value = true;
+	} else if (menuItem === "expenses") {
+		showExpenseDialog.value = true;
 	}
 }
 

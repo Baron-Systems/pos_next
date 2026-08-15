@@ -49,6 +49,12 @@
 							:value="shiftDuration"
 						/>
 
+						<!-- Cart-only barcode input target -->
+						<div
+							id="cart-only-search-target"
+							class="hidden lg:flex items-center ms-2"
+						></div>
+
 						<!-- Price List Selector -->
 						<div
 							v-if="hasMultiplePriceLists"

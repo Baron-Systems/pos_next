@@ -161,3 +161,45 @@ def create_supplier_payment(supplier, company, amount, mode_of_payment="Cash", p
         "amount": amount,
         "supplier": supplier,
     }
+
+
+@frappe.whitelist()
+def get_supplier_statement(supplier, company=None, limit=300):
+    """Get supplier statement: purchase invoices and payments, sorted chronologically."""
+    if not supplier:
+        frappe.throw(_("Supplier is required"))
+
+    inv_filters = {"supplier": supplier, "docstatus": 1}
+    if company:
+        inv_filters["company"] = company
+    invoices = frappe.get_all(
+        "Purchase Invoice",
+        filters=inv_filters,
+        fields=["name", "posting_date", "due_date", "grand_total", "outstanding_amount", "status", "currency", "supplier_name", "is_return"],
+        order_by="posting_date asc, name asc",
+        limit=limit,
+    )
+    for inv in invoices:
+        inv["type"] = "invoice"
+        inv["items"] = frappe.get_all(
+            "Purchase Invoice Item",
+            filters={"parent": inv.name},
+            fields=["name", "item_code", "item_name", "qty", "rate", "amount", "uom", "description"],
+            order_by="idx asc",
+        )
+
+    pay_filters = {"party": supplier, "party_type": "Supplier", "docstatus": 1}
+    if company:
+        pay_filters["company"] = company
+    payments = frappe.get_all(
+        "Payment Entry",
+        filters=pay_filters,
+        fields=["name", "posting_date", "paid_amount", "mode_of_payment", "reference_no", "payment_type", "remarks"],
+        order_by="posting_date asc, name asc",
+        limit=limit,
+    )
+    for pay in payments:
+        pay["type"] = "payment"
+
+    combined = sorted(invoices + payments, key=lambda x: (x.posting_date or "0000-00-00", x.name), reverse=True)
+    return combined

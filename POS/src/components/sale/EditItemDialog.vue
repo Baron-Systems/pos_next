@@ -415,8 +415,8 @@ watch(
 			localWarehouse.value =
 				newItem.warehouse || props.warehouses[0]?.name || ""
 
-			// Set cost rate: prefer valuation_rate (last evaluation price) > last_purchase_rate > 0
-			itemCostRate.value = newItem.valuation_rate || newItem.last_purchase_rate || 0
+			// Set cost rate: prefer last_purchase_rate > valuation_rate > 0
+			itemCostRate.value = newItem.last_purchase_rate || newItem.valuation_rate || 0
 
 			// If cost rate not available in cart data, fetch from server
 			if (!itemCostRate.value && newItem.item_code) {
@@ -704,7 +704,7 @@ const itemCostRateResource = createResource({
 	auto: false,
 	transform(data) {
 		if (data) {
-			itemCostRate.value = data.valuation_rate || data.last_purchase_rate || 0
+			itemCostRate.value = data.last_purchase_rate || data.valuation_rate || 0
 		}
 	}
 })

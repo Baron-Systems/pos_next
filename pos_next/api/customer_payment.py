@@ -347,3 +347,45 @@ def get_invoice_items(invoice_name):
         filters={"parent": invoice_name},
         fields=["item_code", "item_name", "qty", "rate", "amount", "uom", "description"],
         order_by="idx asc")
+
+
+@frappe.whitelist()
+def get_customer_statement(customer, company=None, limit=300):
+    """Get customer statement: sales invoices and payments, sorted chronologically."""
+    if not customer:
+        frappe.throw(_("Customer is required"))
+
+    inv_filters = {"customer": customer, "docstatus": 1}
+    if company:
+        inv_filters["company"] = company
+    invoices = frappe.get_all(
+        "Sales Invoice",
+        filters=inv_filters,
+        fields=["name", "posting_date", "due_date", "grand_total", "outstanding_amount", "status", "currency", "customer_name", "is_return"],
+        order_by="posting_date asc, name asc",
+        limit=limit,
+    )
+    for inv in invoices:
+        inv["type"] = "invoice"
+        inv["items"] = frappe.get_all(
+            "Sales Invoice Item",
+            filters={"parent": inv.name},
+            fields=["name", "item_code", "item_name", "qty", "rate", "amount", "uom", "description"],
+            order_by="idx asc",
+        )
+
+    pay_filters = {"party": customer, "party_type": "Customer", "docstatus": 1}
+    if company:
+        pay_filters["company"] = company
+    payments = frappe.get_all(
+        "Payment Entry",
+        filters=pay_filters,
+        fields=["name", "posting_date", "paid_amount", "mode_of_payment", "reference_no", "payment_type", "remarks"],
+        order_by="posting_date asc, name asc",
+        limit=limit,
+    )
+    for pay in payments:
+        pay["type"] = "payment"
+
+    combined = sorted(invoices + payments, key=lambda x: (x.posting_date or "0000-00-00", x.name), reverse=True)
+    return combined

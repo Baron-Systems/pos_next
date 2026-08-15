@@ -96,12 +96,16 @@ export const usePOSUIStore = defineStore("posUI", () => {
 		showErrorDialog.value = false
 	}
 
-	function showSuccess(invoiceName, total, paidAmount = null) {
+	function setLastInvoice(invoiceName, total, paidAmount = null) {
 		lastInvoiceName.value = invoiceName
 		lastInvoiceTotal.value = total
 		lastPaidAmount.value = paidAmount !== null ? paidAmount : total
 		localStorage.setItem("pos_last_invoice_name", invoiceName)
 		localStorage.setItem("pos_last_invoice_total", String(total))
+	}
+
+	function showSuccess(invoiceName, total, paidAmount = null) {
+		setLastInvoice(invoiceName, total, paidAmount)
 		showSuccessDialog.value = true
 	}
 
@@ -210,6 +214,7 @@ export const usePOSUIStore = defineStore("posUI", () => {
 		setMobileTab,
 		showError,
 		clearError,
+		setLastInvoice,
 		showSuccess,
 		setInitialCustomerName,
 		setLeftPanelWidth,

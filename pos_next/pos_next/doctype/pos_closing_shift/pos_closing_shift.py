@@ -522,11 +522,14 @@ def _process_invoice(invoice, invoice_field, company_currency, cash_mode, paymen
         _aggregate_tax(taxes, t.account_head, t.rate, tax_amount)
 
     # Process payments
+    cash_invoice_total = 0
     for p in invoice.payments:
         amount = get_base_value(p, "amount", "base_amount", conversion_rate)
         if p.mode_of_payment == cash_mode:
             amount -= get_base_value(invoice, "change_amount", "base_change_amount", conversion_rate)
+            cash_invoice_total += amount
         _aggregate_payment(payments, p.mode_of_payment, amount)
+    summary["cash_sales_total"] += cash_invoice_total
 
     return transaction
 
@@ -557,6 +560,55 @@ def _get_currency_exchange_operations(opening_shift_name):
         order_by="posting_date desc, posting_time desc",
     )
     return exchanges
+
+
+def _get_payment_method_transfers(opening_shift_name):
+    """Get POS Payment Method Transfer transactions for the opening shift."""
+    if not opening_shift_name:
+        return []
+
+    transfers = frappe.get_all(
+        "POS Payment Method Transfer",
+        filters={
+            "pos_opening_shift": opening_shift_name,
+            "docstatus": 1,
+        },
+        fields=[
+            "name",
+            "posting_date",
+            "from_mode_of_payment",
+            "to_mode_of_payment",
+            "amount",
+            "journal_entry",
+        ],
+        order_by="posting_date desc",
+    )
+    return transfers
+
+
+def _get_shift_expenses(opening_shift_name):
+    """Get POS Shift Expense transactions for the opening shift."""
+    if not opening_shift_name:
+        return []
+
+    expenses = frappe.get_all(
+        "POS Shift Expense",
+        filters={
+            "pos_opening_shift": opening_shift_name,
+            "docstatus": 1,
+        },
+        fields=[
+            "name",
+            "posting_date",
+            "expense_name",
+            "expense_account",
+            "mode_of_payment",
+            "amount",
+            "journal_entry",
+        ],
+        order_by="posting_date desc",
+    )
+    return expenses
 
 
 def _build_currency_closing_balances(opening_shift, company_currency=None):
@@ -666,6 +718,7 @@ def make_closing_shift_from_opening(opening_shift):
         "grand_total": 0, "net_total": 0, "total_quantity": 0,
         "returns_total": 0, "returns_count": 0,
         "sales_total": 0, "sales_count": 0,
+        "cash_sales_total": 0,
     }
 
     # Add opening balances to payments
@@ -701,6 +754,36 @@ def make_closing_shift_from_opening(opening_shift):
         if py.payment_type == "Pay":
             amount = -amount
         _aggregate_payment(payments, py.mode_of_payment, amount)
+
+    # Process payment method transfers (outflow from source, inflow to target)
+    pos_transfers_table = []
+    for tr in _get_payment_method_transfers(opening_shift.get("name")):
+        pos_transfers_table.append(frappe._dict({
+            "transfer_entry": tr.name,
+            "from_mode_of_payment": tr.from_mode_of_payment,
+            "to_mode_of_payment": tr.to_mode_of_payment,
+            "amount": flt(tr.amount),
+            "posting_date": tr.posting_date,
+            "journal_entry": tr.journal_entry,
+        }))
+        _aggregate_payment(payments, tr.from_mode_of_payment, -flt(tr.amount))
+        _aggregate_payment(payments, tr.to_mode_of_payment, flt(tr.amount))
+
+    # Process shift expenses (outflow from payment method)
+    pos_expenses_table = []
+    for ex in _get_shift_expenses(opening_shift.get("name")):
+        pos_expenses_table.append(frappe._dict({
+            "expense_entry": ex.name,
+            "expense_name": ex.expense_name,
+            "expense_account": ex.expense_account,
+            "mode_of_payment": ex.mode_of_payment,
+            "amount": flt(ex.amount),
+            "posting_date": ex.posting_date,
+            "journal_entry": ex.journal_entry,
+        }))
+        _aggregate_payment(payments, ex.mode_of_payment, -flt(ex.amount))
+
+    total_expenses = sum(flt(ex.amount) for ex in pos_expenses_table)
 
     # Update closing shift with totals
     closing_shift.grand_total = summary["grand_total"]
@@ -759,8 +842,12 @@ def make_closing_shift_from_opening(opening_shift):
         "returns_count": summary["returns_count"],
         "sales_total": summary["sales_total"],
         "sales_count": summary["sales_count"],
+        "cash_sales_total": summary["cash_sales_total"],
         "pos_transactions": pos_transactions,  # Include return info for display
         "currency_exchange_operations": currency_exchange_operations,
+        "payment_method_transfers": pos_transfers_table,
+        "shift_expenses": pos_expenses_table,
+        "total_expenses": total_expenses,
     })
 
     return result

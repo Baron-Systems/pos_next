@@ -5,14 +5,28 @@ export const cacheItems = async (items, priceList = null) => {
 	try {
 		if (!items || items.length === 0) return;
 
+		const extractBarcodes = (item) => {
+			if (Array.isArray(item.barcodes)) {
+				return item.barcodes
+					.map((b) => (typeof b === "object" && b ? b.barcode : b))
+					.filter(Boolean);
+			}
+			if (item.barcode) return [item.barcode];
+			if (item.item_barcode) {
+				if (Array.isArray(item.item_barcode)) {
+					return item.item_barcode
+						.map((b) => (typeof b === "object" && b ? b.barcode : b))
+						.filter(Boolean);
+				}
+				return [item.item_barcode];
+			}
+			return [];
+		};
+
 		// Process items with barcodes
 		const processedItems = items.map((item) => ({
 			...item,
-			barcodes: item.item_barcode
-				? Array.isArray(item.item_barcode)
-					? item.item_barcode.map((b) => b.barcode).filter(Boolean)
-					: [item.item_barcode]
-				: [],
+			barcodes: extractBarcodes(item),
 		}));
 
 		// Save to items table

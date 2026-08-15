@@ -1011,6 +1011,21 @@ def get_item_variants(template_item, pos_profile, price_list=None):
 					uom_prices_map[price["item_code"]] = {}
 				uom_prices_map[price["item_code"]][price["uom"]] = price["price_list_rate"]
 
+		# Barcodes
+		barcode_map = {}
+		if variant_codes:
+			barcodes = frappe.db.sql(
+				"""
+				SELECT parent, barcode
+				FROM `tabItem Barcode`
+				WHERE parent IN %s
+				""",
+				[variant_codes],
+				as_dict=1,
+			)
+			for b in barcodes:
+				barcode_map.setdefault(b["parent"], []).append(b["barcode"])
+
 		# Get all variant attributes in a single query (performance optimization)
 		attributes_map = {}
 		if variant_codes:
@@ -1063,6 +1078,9 @@ def get_item_variants(template_item, pos_profile, price_list=None):
 
 			# Add UOM-specific prices
 			variant["uom_prices"] = uom_prices_map.get(variant["item_code"], {})
+
+			# Add all barcodes for offline scanning
+			variant["barcodes"] = barcode_map.get(variant["item_code"], [])
 
 		return variants
 	except Exception as e:
@@ -1524,12 +1542,13 @@ def get_items(pos_profile, search_term=None, item_group=None, start=0, limit=20,
 				SELECT parent, barcode
 				FROM `tabItem Barcode`
 				WHERE parent IN %s
-				GROUP BY parent
 				""",
 				[item_codes],
 				as_dict=1,
 			)
-			barcode_map = {b["parent"]: b["barcode"] for b in barcodes}
+			barcode_map = {}
+			for b in barcodes:
+				barcode_map.setdefault(b["parent"], []).append(b["barcode"])
 
 		# UOM conversions (both list & map for quick lookup)
 		if item_codes:
@@ -1726,8 +1745,8 @@ def get_items(pos_profile, search_term=None, item_group=None, start=0, limit=20,
 			# Add warehouse to item (needed for stock validation)
 			item["warehouse"] = pos_profile_doc.warehouse
 
-			# Barcode
-			item["barcode"] = barcode_map.get(item["item_code"], "")
+			# Barcodes (all barcodes for offline scanning)
+			item["barcodes"] = barcode_map.get(item["item_code"], [])
 
 			# Item UOMs (exclude stock UOM to avoid duplicates)
 			all_uoms = uom_map.get(item["item_code"], []) or []

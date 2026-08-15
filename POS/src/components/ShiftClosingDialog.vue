@@ -45,11 +45,11 @@
                 <div class="text-green-600 text-xs">{{ __('After returns') }}</div>
               </div>
 
-              <!-- Tax Collected -->
+              <!-- Total Cash Sales -->
               <div class="text-start bg-gray-50 border border-gray-200 rounded-lg p-3 md:p-4">
-                <div class="text-gray-600 text-xs uppercase font-medium mb-1">{{ __('Tax Collected') }}</div>
-                <div class="text-lg md:text-2xl font-bold text-gray-900 mb-0.5 md:mb-1 truncate">{{ formatCurrency(totalTax) }}</div>
-                <div class="text-gray-600 text-xs">{{ __('Net tax') }}</div>
+                <div class="text-gray-600 text-xs uppercase font-medium mb-1">{{ __('اجمالي المبيعات النقدية') }}</div>
+                <div class="text-lg md:text-2xl font-bold text-gray-900 mb-0.5 md:mb-1 truncate">{{ formatCurrency(totalCashSales) }}</div>
+                <div class="text-gray-600 text-xs">{{ __('المبيعات النقدية') }}</div>
               </div>
             </div>
           </div>
@@ -467,6 +467,80 @@
                   </tfoot>
                 </table>
               </div>
+            </div>
+          </div>
+
+          <!-- Shift Expenses (Collapsible) - Show only when shift expenses exist -->
+          <div v-if="hasShiftExpenses" class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+            <button
+              @click="showShiftExpenses = !showShiftExpenses"
+              :aria-label="`${showShiftExpenses ? 'Hide' : 'Show'} shift expenses for ${shiftExpensesCount} transactions`"
+              :aria-expanded="showShiftExpenses"
+              class="w-full px-3 py-3 md:px-6 md:py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div class="text-start">
+                <h3 class="text-sm md:text-lg font-medium text-gray-900">{{ __('مصاريف الوردية') }}</h3>
+                <p class="text-xs md:text-sm text-gray-500">{{ __('{0} مصروف • {1}', [shiftExpensesCount, formatCurrency(totalShiftExpenses)]) }}</p>
+              </div>
+              <svg
+                :class="['h-4 w-4 md:h-5 md:w-5 text-gray-400 transition-transform', showShiftExpenses ? 'transform rotate-180' : '']"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <div v-show="showShiftExpenses" class="border-t border-gray-200 overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('المصروف') }}</th>
+                    <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('طريقة الدفع') }}</th>
+                    <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('التاريخ') }}</th>
+                    <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('الحساب') }}</th>
+                    <th class="px-6 py-3 text-end text-xs font-medium text-gray-500 uppercase">{{ __('المبلغ') }}</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <tr v-for="(expense, idx) in shiftExpenses" :key="idx"
+                      class="hover:bg-gray-50 bg-rose-50/30">
+                    <td class="text-start px-6 py-4 whitespace-nowrap">
+                      <div class="text-sm font-medium text-gray-900">{{ expense.expense_name }}</div>
+                      <div v-if="expense.expense_entry" class="text-xs text-gray-500">{{ expense.expense_entry }}</div>
+                    </td>
+                    <td class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <span class="px-2 py-1 text-xs font-medium bg-rose-100 text-rose-800 rounded">
+                        {{ expense.mode_of_payment }}
+                      </span>
+                    </td>
+                    <td class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {{ formatDate(expense.posting_date) }}
+                    </td>
+                    <td class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {{ expense.expense_account }}
+                    </td>
+                    <td class="text-end px-6 py-4 whitespace-nowrap">
+                      <span class="text-sm font-semibold text-rose-700">
+                        -{{ formatCurrency(expense.amount) }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot class="bg-gray-50">
+                  <tr>
+                    <td colspan="4" class="px-6 py-4 text-start text-sm font-semibold text-gray-700">
+                      {{ __('إجمالي المصاريف:') }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-end">
+                      <span class="text-base font-bold text-rose-800">
+                        -{{ formatCurrency(totalShiftExpenses) }}
+                      </span>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           </div>
 
@@ -956,7 +1030,7 @@ const open = computed({
 })
 
 const { getClosingShiftData, submitClosingShift } = useShift()
-const { formatCurrency, formatQuantity, formatDateTime, formatTime } = useFormatters()
+const { formatCurrency, formatQuantity, formatDateTime, formatTime, formatDate } = useFormatters()
 const posSettingsStore = usePOSSettingsStore()
 const { hideExpectedAmount } = storeToRefs(posSettingsStore)
 
@@ -966,6 +1040,7 @@ const submitResource = submitClosingShift
 const showInvoiceDetails = ref(false)
 const showCustomerPayments = ref(false) // Track if customer payments section is expanded
 const showSupplierPayments = ref(false) // Track if supplier payments section is expanded
+const showShiftExpenses = ref(false) // Track if shift expenses section is expanded
 const showSuccessReport = ref(false) // Track if shift is closed and showing report
 const errorMessage = ref('') // User-friendly error message
 
@@ -1212,6 +1287,22 @@ const totalSupplierPayments = computed(() => {
 	)
 })
 
+// Shift expenses
+const shiftExpenses = computed(() => {
+	if (!closingData.value) return []
+	return closingData.value.shift_expenses || []
+})
+
+const hasShiftExpenses = computed(() => shiftExpenses.value.length > 0)
+const shiftExpensesCount = computed(() => shiftExpenses.value.length)
+
+const totalShiftExpenses = computed(() => {
+	return shiftExpenses.value.reduce(
+		(sum, expense) => sum + Number.parseFloat(expense.amount || 0),
+		0,
+	)
+})
+
 // Count of sales invoices (non-returns)
 const salesInvoiceCount = computed(() => {
 	if (!closingData.value) return 0
@@ -1225,6 +1316,11 @@ const totalTax = computed(() => {
 		(sum, tax) => sum + Number.parseFloat(tax.amount || 0),
 		0,
 	)
+})
+
+const totalCashSales = computed(() => {
+	if (!closingData.value) return 0
+	return closingData.value.cash_sales_total ?? 0
 })
 
 const grossSales = computed(() => {
