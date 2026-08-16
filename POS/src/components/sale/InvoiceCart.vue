@@ -298,15 +298,15 @@
 					</div>
 
 					<!-- Customer Results - Fixed height for ~5 items with scroll -->
-				<div v-if="customerResults.length > 0" class="max-h-[250px] overflow-y-auto overscroll-contain">
+				<div v-if="customerResults.length > 0" ref="customerResultsContainer" class="max-h-[250px] overflow-y-auto overscroll-contain">
 					<button
 						type="button"
 						v-for="(cust, index) in customerResults"
-							:key="cust.name"
+							:key="cust.name" :ref="(el) => setCustomerItemRef(el, cust.name)"
 							@mousedown.prevent="selectCustomer(cust)"
 							:class="[
 								'w-full text-start px-2 py-1.5 flex items-center gap-1.5 border-b border-gray-100 last:border-0 touch-manipulation select-none cursor-pointer active:bg-blue-200',
-								index === selectedIndex ? 'bg-blue-100' : 'hover:bg-blue-50 active:bg-blue-100',
+								index === selectedIndex ? 'bg-blue-200 ring-1 ring-blue-400 shadow-sm font-semibold' : 'hover:bg-blue-50 active:bg-blue-100',
 							]"
 						>
 							<div
@@ -1478,6 +1478,13 @@ const customerSearchFocused = ref(false); // Track if search input is focused
 const allCustomers = computed(() => customerSearchStore.allCustomers);
 const customersLoaded = computed(() => customerSearchStore.allCustomers.length > 0);
 const selectedIndex = ref(-1); // Keyboard navigation index for search results
+const customerResultsContainer = ref(null);
+const customerItemRefs = ref(new Map());
+
+function setCustomerItemRef(el, customerName) {
+	if (el) customerItemRefs.value.set(customerName, el);
+	else customerItemRefs.value.delete(customerName);
+}
 const availableGiftCards = ref([]); // Available gift cards for current customer
 const previousCustomer = ref(null); // Store previous customer for restore on blur
 
@@ -1721,6 +1728,19 @@ const customerResults = computed(() => {
 watch(customerResults, () => {
 	selectedIndex.value = -1;
 });
+
+// Keep the keyboard-focused customer visible in the dropdown
+watch(selectedIndex, (newIndex) => {
+	if (newIndex < 0) return;
+
+	const cust = customerResults.value[newIndex];
+	if (!cust) return;
+
+	const el = customerItemRefs.value.get(cust.name);
+	if (el && customerResultsContainer.value) {
+		el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+	}
+}, { flush: 'post' });
 
 /**
  * Total quantity of all items in cart (including free items).

@@ -829,7 +829,7 @@ const barcodeInputRef = ref(null)
 // Scanner and Auto-Add ON by default for fast selling: scan → item goes straight to cart
 const scannerEnabled = ref(true)
 const autoAddEnabled = ref(true)
-const itemThreshold = ref(50) // Threshold for auto-switching to list view
+const itemThreshold = ref(Number.MAX_SAFE_INTEGER) // Disable auto-switch; keep cards as default
 const userManuallySetView = ref(false) // Track if user manually changed view mode
 const scannerInputDetected = ref(false) // Track if current input is from scanner
 const autoSearchTimer = ref(null) // Timer for auto-search when typing stops

@@ -63,7 +63,7 @@
 				</div>
 
 				<!-- Customers List - Optimized rendering -->
-				<div class="max-h-[70vh] overflow-y-auto" style="will-change: scroll-position;">
+				<div ref="customerListRef" class="max-h-[70vh] overflow-y-auto" style="will-change: scroll-position;">
 					<div v-if="loading" class="text-center py-8">
 						<div
 							class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"
@@ -123,11 +123,12 @@
 							v-for="(customer, index) in customers"
 							:key="customer.name"
 							v-memo="[customer.name, index === selectedIndex]"
+							:ref="(el) => setCustomerItemRef(el, customer.name)"
 							@click="selectCustomer(customer)"
 							:class="[
 								'w-full text-start p-3 rounded-lg border transition-all duration-75',
 								index === selectedIndex
-									? 'border-blue-500 bg-blue-50 shadow-sm'
+									? 'border-blue-600 bg-blue-100 ring-1 ring-blue-300 shadow-md'
 									: 'border-gray-200 hover:border-blue-400 hover:bg-blue-50'
 							]"
 						>
@@ -211,7 +212,7 @@
 import { useCustomerSearchStore } from "@/stores/customerSearch"
 import { Button, Dialog } from "frappe-ui"
 import { storeToRefs } from "pinia"
-import { computed, onMounted, ref, watch } from "vue"
+import { computed, nextTick, onMounted, ref, watch } from "vue"
 import CreateCustomerDialog from "./CreateCustomerDialog.vue"
 
 const props = defineProps({
@@ -237,6 +238,13 @@ const { toggleFavoriteCustomer, isFavoriteCustomer } = customerStore
 
 // Local state
 const showCreateDialog = ref(false)
+const customerItemRefs = ref(new Map())
+const customerListRef = ref(null)
+
+function setCustomerItemRef(el, customerName) {
+	if (el) customerItemRefs.value.set(customerName, el)
+	else customerItemRefs.value.delete(customerName)
+}
 
 const show = computed({
 	get: () => props.modelValue,
@@ -298,6 +306,21 @@ onMounted(() => {
 		customerStore.loadAllCustomers(props.posProfile)
 		customerStore.loadCustomerHistory()
 	}
+})
+
+// Keep the keyboard-focused customer visible in the list
+watch(selectedIndex, (newIndex) => {
+	if (newIndex < 0) return
+
+	const customer = customers.value[newIndex]
+	if (!customer) return
+
+	nextTick(() => {
+		const el = customerItemRefs.value.get(customer.name)
+		if (el && customerListRef.value) {
+			el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+		}
+	})
 })
 
 function selectCustomer(customer) {
