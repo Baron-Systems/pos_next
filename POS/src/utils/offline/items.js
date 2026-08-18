@@ -24,7 +24,7 @@ export const cacheItems = async (items, priceList = null) => {
 		};
 
 		const extractBarcodeUoms = (item) => {
-			const uoms = {};
+			const uoms = { ...(item.barcode_uoms || {}) };
 			if (Array.isArray(item.barcodes)) {
 				item.barcodes.forEach((b) => {
 					if (b && typeof b === "object" && b.barcode) {

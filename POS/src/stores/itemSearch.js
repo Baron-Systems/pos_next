@@ -1,5 +1,6 @@
 import { call } from "@/utils/apiWrapper"
 import { isOffline } from "@/utils/offline"
+import { db } from "@/utils/offline/db"
 import { offlineWorker } from "@/utils/offline/workerClient"
 import { cacheItems, getCachedVariants, searchCachedItemByBarcode } from "@/utils/offline/items"
 import { performanceConfig } from "@/utils/performanceConfig"
@@ -1340,6 +1341,35 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					const item = result?.message || result
 					if (item && item.item_code) {
 						log.debug("Found item by barcode on server", { barcode, item_code: item.item_code })
+						// Seed the offline cache with the UOM for this scanned barcode
+						try {
+							const cached = await db.items.get(item.item_code)
+							if (cached) {
+								const updated = {
+									...cached,
+									barcode_uoms: {
+										...(cached.barcode_uoms || {}),
+										[barcode]: item.uom || cached.stock_uom,
+									},
+								}
+								await offlineWorker.cacheItems([updated])
+							} else {
+								const uom = item.uom || item.stock_uom
+								const newItem = {
+									...item,
+									barcodes: [barcode],
+									barcode_uoms: {
+										[barcode]: uom,
+									},
+									uom_prices: {
+										[uom]: item.rate ?? item.price_list_rate ?? 0,
+									},
+								}
+								await offlineWorker.cacheItems([newItem])
+							}
+						} catch (cacheError) {
+							log.warn("Failed to seed barcode UOM in cache", cacheError)
+						}
 						return item
 					}
 					log.debug("Server returned no item for barcode, trying cache", { barcode })
