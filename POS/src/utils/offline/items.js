@@ -1,5 +1,17 @@
 import { db, getSetting, setSetting } from "./db";
 
+// Bump this when the shape of cached item data changes (e.g. new barcode_uoms field)
+export const CACHE_DATA_VERSION = 2
+
+export const isCacheDataVersionCurrent = async () => {
+	const v = await getSetting("cache_data_version", 0)
+	return v >= CACHE_DATA_VERSION
+}
+
+export const setCacheDataVersion = async (version = CACHE_DATA_VERSION) => {
+	await setSetting("cache_data_version", version)
+}
+
 // Cache items in IndexedDB
 export const cacheItems = async (items, priceList = null) => {
 	try {

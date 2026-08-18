@@ -2,7 +2,7 @@ import { call } from "@/utils/apiWrapper"
 import { isOffline } from "@/utils/offline"
 import { db } from "@/utils/offline/db"
 import { offlineWorker } from "@/utils/offline/workerClient"
-import { cacheItems, getCachedVariants, searchCachedItemByBarcode } from "@/utils/offline/items"
+import { cacheItems, getCachedVariants, searchCachedItemByBarcode, isCacheDataVersionCurrent, setCacheDataVersion } from "@/utils/offline/items"
 import { performanceConfig } from "@/utils/performanceConfig"
 import { logger } from "@/utils/logger"
 import { createResource } from "frappe-ui"
@@ -688,6 +688,19 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 			cacheStats.value = stats
 			cacheReady.value = stats.cacheReady
 
+			// If cached data is too old (missing barcode_uoms), clear and re-sync from server
+			if (!isOffline() && !forceServerFetch && !await isCacheDataVersionCurrent()) {
+				log.warn("Cache data version is outdated, clearing items cache for full re-sync")
+				try {
+					await offlineWorker.clearItemsCache()
+					stats.cacheReady = false
+					cacheReady.value = false
+					serverDataFresh.value = false
+				} catch (clearError) {
+					log.error("Failed to clear outdated cache", clearError)
+				}
+			}
+
 			// Determine if we're in offline mode (no network connectivity)
 			const offline = isOffline()
 
@@ -832,6 +845,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					// Clear cache first to remove any disabled/stale items, then cache fresh data
 					await offlineWorker.clearItemsCache()
 					await offlineWorker.cacheItems(fetchedItems)
+					await setCacheDataVersion()
 					cacheReady.value = true
 
 					// Mark data as fresh - prevents redundant fetches on page refresh
@@ -881,6 +895,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					// Clear cache first to remove any disabled/stale items, then cache fresh data
 					await offlineWorker.clearItemsCache()
 					await offlineWorker.cacheItems(list)
+					await setCacheDataVersion()
 
 					// Mark data as fresh
 					serverDataFresh.value = true
