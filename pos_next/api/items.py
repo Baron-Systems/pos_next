@@ -1016,7 +1016,7 @@ def get_item_variants(template_item, pos_profile, price_list=None):
 		if variant_codes:
 			barcodes = frappe.db.sql(
 				"""
-				SELECT parent, barcode
+				SELECT parent, barcode, uom
 				FROM `tabItem Barcode`
 				WHERE parent IN %s
 				""",
@@ -1024,7 +1024,10 @@ def get_item_variants(template_item, pos_profile, price_list=None):
 				as_dict=1,
 			)
 			for b in barcodes:
-				barcode_map.setdefault(b["parent"], []).append(b["barcode"])
+				barcode_map.setdefault(b["parent"], []).append({
+					"barcode": b["barcode"],
+					"uom": b["uom"],
+				})
 
 		# Get all variant attributes in a single query (performance optimization)
 		attributes_map = {}
@@ -1281,7 +1284,7 @@ def _calculate_bundle_availability_bulk(bundle_codes, warehouse):
 	# Example:
 	#   LAPTOP-COMBO components:
 	#     - LAPTOP (need 1): 50 available → 50 possible bundles
-	#     - MOUSE (need 1): 30 available → 30 possible bundles ← LIMITING FACTOR
+	#     - MOUSE (need 1): 30 available → 30 possible bundles ← LIMITING
 	#     - KEYBOARD (need 1): 100 available → 100 possible bundles
 	#   Result: LAPTOP-COMBO availability = 30 (limited by MOUSE)
 	bundle_availability = {}
@@ -1539,7 +1542,7 @@ def get_items(pos_profile, search_term=None, item_group=None, start=0, limit=20,
 		if item_codes:
 			barcodes = frappe.db.sql(
 				"""
-				SELECT parent, barcode
+				SELECT parent, barcode, uom
 				FROM `tabItem Barcode`
 				WHERE parent IN %s
 				""",
@@ -1548,7 +1551,10 @@ def get_items(pos_profile, search_term=None, item_group=None, start=0, limit=20,
 			)
 			barcode_map = {}
 			for b in barcodes:
-				barcode_map.setdefault(b["parent"], []).append(b["barcode"])
+				barcode_map.setdefault(b["parent"], []).append({
+					"barcode": b["barcode"],
+					"uom": b["uom"],
+				})
 
 		# UOM conversions (both list & map for quick lookup)
 		if item_codes:

@@ -210,8 +210,17 @@ function recordMetric(operation, duration, isError = false) {
  * @returns {Array<string>} Normalized barcode array
  */
 function extractBarcodes(item) {
-	// Fast path: already normalized
-	if (Array.isArray(item.barcodes)) return item.barcodes
+	// Fast path: already normalized string array
+	if (Array.isArray(item.barcodes) && item.barcodes.every(b => typeof b === "string")) {
+		return item.barcodes
+	}
+
+	// Array of objects or mixed - extract barcode strings
+	if (Array.isArray(item.barcodes)) {
+		return item.barcodes
+			.map(b => (typeof b === "object" && b ? b.barcode : b))
+			.filter(Boolean)
+	}
 
 	// Single barcode
 	if (item.barcode) return [item.barcode]
@@ -220,13 +229,32 @@ function extractBarcodes(item) {
 	if (item.item_barcode) {
 		if (Array.isArray(item.item_barcode)) {
 			return item.item_barcode
-				.map(b => (typeof b === "object" ? b.barcode : b))
+				.map(b => (typeof b === "object" && b ? b.barcode : b))
 				.filter(Boolean)
 		}
 		return [item.item_barcode]
 	}
 
 	return []
+}
+
+function extractBarcodeUoms(item) {
+	const uoms = {}
+	if (Array.isArray(item.barcodes)) {
+		item.barcodes.forEach(b => {
+			if (b && typeof b === "object" && b.barcode) {
+				uoms[b.barcode] = b.uom || item.stock_uom
+			}
+		})
+	}
+	if (Array.isArray(item.item_barcode)) {
+		item.item_barcode.forEach(b => {
+			if (b && typeof b === "object" && b.barcode) {
+				uoms[b.barcode] = b.uom || item.stock_uom
+			}
+		})
+	}
+	return uoms
 }
 
 /**
@@ -652,6 +680,7 @@ async function cacheItemsFromServer(items) {
 				const processedItems = batch.map(item => ({
 					...item,
 					barcodes: extractBarcodes(item),
+					barcode_uoms: extractBarcodeUoms(item),
 				}))
 
 				// Bulk insert items (single DB round trip per batch)
