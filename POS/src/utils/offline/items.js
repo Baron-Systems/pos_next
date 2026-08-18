@@ -23,10 +23,23 @@ export const cacheItems = async (items, priceList = null) => {
 			return [];
 		};
 
-		// Process items with barcodes
+		const extractBarcodeUoms = (item) => {
+			const uoms = {};
+			if (Array.isArray(item.barcodes)) {
+				item.barcodes.forEach((b) => {
+					if (b && typeof b === "object" && b.barcode) {
+						uoms[b.barcode] = b.uom || item.stock_uom;
+					}
+				});
+			}
+			return uoms;
+		};
+
+		// Process items with barcodes and UOM mapping
 		const processedItems = items.map((item) => ({
 			...item,
 			barcodes: extractBarcodes(item),
+			barcode_uoms: extractBarcodeUoms(item),
 		}));
 
 		// Save to items table
@@ -291,19 +304,58 @@ export const parseScaleBarcode = (barcode) => {
 	};
 };
 
+function buildUomItem(item, matchedBarcode, weightKgs) {
+	const stockUom = item.stock_uom;
+	const uom = item.barcode_uoms?.[matchedBarcode] || stockUom;
+	let conversionFactor = 1;
+	if (uom && uom !== stockUom) {
+		const uomData = item.item_uoms?.find((u) => u.uom === uom);
+		conversionFactor = uomData?.conversion_factor || 1;
+	}
+
+	const uomPrice = item.uom_prices?.[uom];
+	const baseRate = item.rate ?? item.price_list_rate ?? 0;
+	const basePriceListRate = item.price_list_rate ?? item.rate ?? 0;
+	let rate = baseRate;
+	let priceListRate = basePriceListRate;
+
+	if (uom && uom !== stockUom) {
+		if (uomPrice != null) {
+			rate = Number.parseFloat(uomPrice);
+			priceListRate = rate;
+		} else if (conversionFactor !== 1) {
+			rate = baseRate * conversionFactor;
+			priceListRate = basePriceListRate * conversionFactor;
+		}
+	}
+
+	return {
+		item: {
+			...item,
+			uom,
+			conversion_factor: conversionFactor,
+			price_list_rate: priceListRate,
+			rate,
+		},
+		weightKgs,
+	};
+}
+
 export const searchCachedItemByBarcode = async (barcode) => {
 	const exact = await getItemByBarcode(barcode);
-	if (exact) return { item: exact, weightKgs: null };
+	if (exact) return buildUomItem(exact, barcode, null);
 
 	const parsed = parseScaleBarcode(barcode);
 	if (!parsed) return { item: null, weightKgs: null };
 
 	let item = await getItemByBarcode(parsed.baseBarcode);
+	let matched = parsed.baseBarcode;
 	if (!item) {
 		item = await getItemByBarcode(parsed.plu);
+		matched = parsed.plu;
 	}
 	if (item) {
-		return { item, weightKgs: parsed.weightKgs };
+		return buildUomItem(item, matched, parsed.weightKgs);
 	}
 	return { item: null, weightKgs: null };
 };
