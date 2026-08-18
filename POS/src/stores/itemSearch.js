@@ -1,7 +1,7 @@
 import { call } from "@/utils/apiWrapper"
 import { isOffline } from "@/utils/offline"
 import { offlineWorker } from "@/utils/offline/workerClient"
-import { cacheItems, getCachedVariants, getItemByBarcode } from "@/utils/offline/items"
+import { cacheItems, getCachedVariants, searchCachedItemByBarcode } from "@/utils/offline/items"
 import { performanceConfig } from "@/utils/performanceConfig"
 import { logger } from "@/utils/logger"
 import { createResource } from "frappe-ui"
@@ -1329,11 +1329,14 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 
 			log.debug("Searching by barcode", { posProfile: posProfile.value, barcode })
 
-			// Offline/cache-first: if the items have been cached, resolve by barcode locally
+			// Offline/cache-first: resolve by barcode locally (supports regular and RLS1100C scale barcodes)
 			if (isOffline() || cacheReady.value) {
-				const cachedItem = await getItemByBarcode(barcode)
+				const { item: cachedItem, weightKgs } = await searchCachedItemByBarcode(barcode)
 				if (cachedItem && cachedItem.item_code) {
-					log.debug("Found cached item by barcode", { barcode, item_code: cachedItem.item_code })
+					log.debug("Found cached item by barcode", { barcode, item_code: cachedItem.item_code, weightKgs })
+					if (weightKgs != null && weightKgs > 0) {
+						cachedItem.qty = weightKgs
+					}
 					return cachedItem
 				}
 				// If offline and nothing cached, there is no network to fall back to

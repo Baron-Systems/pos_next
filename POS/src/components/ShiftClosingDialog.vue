@@ -133,9 +133,28 @@
             </button>
 
             <div v-show="showInvoiceDetails" class="border-t border-gray-200">
+              <!-- Invoice display limit filter -->
+              <div class="flex items-center justify-between gap-2 p-3 md:p-4 bg-gray-50 border-b border-gray-200">
+                <span class="text-xs md:text-sm text-gray-600">
+                  {{ __('Showing {0} of {1} invoices', [displayedInvoices.length, invoiceCount]) }}
+                </span>
+                <div class="flex items-center gap-2">
+                  <label for="invoice-display-limit" class="text-xs md:text-sm text-gray-600">{{ __('Show') }}</label>
+                  <select
+                    id="invoice-display-limit"
+                    v-model="invoiceDisplayLimit"
+                    class="text-xs md:text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option v-for="option in invoiceDisplayOptions" :key="option" :value="option">
+                      {{ option === 'all' ? __('All') : option }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
               <!-- Mobile Card View -->
               <div class="md:hidden divide-y divide-gray-200">
-                <div v-for="(invoice, idx) in closingData.pos_transactions" :key="idx"
+                <div v-for="(invoice, idx) in displayedInvoices" :key="idx"
                      :class="['p-3', invoice.is_return ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50']">
                   <div class="flex justify-between items-start mb-2">
                     <div class="flex items-center gap-2">
@@ -178,7 +197,7 @@
                     </tr>
                   </thead>
                   <tbody class="bg-white divide-y divide-gray-200">
-                    <tr v-for="(invoice, idx) in closingData.pos_transactions" :key="idx"
+                    <tr v-for="(invoice, idx) in displayedInvoices" :key="idx"
                         :class="invoice.is_return ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'">
                       <td class="text-start px-6 py-4 whitespace-nowrap">
                         <span :class="['text-sm font-medium', invoice.is_return ? 'text-red-700' : 'text-gray-900']">
@@ -1043,6 +1062,8 @@ const showSupplierPayments = ref(false) // Track if supplier payments section is
 const showShiftExpenses = ref(false) // Track if shift expenses section is expanded
 const showSuccessReport = ref(false) // Track if shift is closed and showing report
 const errorMessage = ref('') // User-friendly error message
+const invoiceDisplayLimit = ref(10)
+const invoiceDisplayOptions = [10, 20, 50, 100, 'all']
 
 // Watch dialog open state
 watch(open, async (isOpen) => {
@@ -1238,6 +1259,13 @@ const invoiceCount = computed(() => {
 	if (!closingData.value) return 0
 	const transactions = closingData.value.pos_transactions || []
 	return transactions.length
+})
+
+const displayedInvoices = computed(() => {
+	if (!closingData.value) return []
+	const transactions = closingData.value.pos_transactions || []
+	if (invoiceDisplayLimit.value === 'all') return transactions
+	return transactions.slice(0, Number(invoiceDisplayLimit.value))
 })
 
 // Check if there are any return invoices

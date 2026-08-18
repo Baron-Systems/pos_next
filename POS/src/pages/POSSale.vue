@@ -184,7 +184,7 @@
 					:has-multiple-payment-methods="hasMultiplePaymentMethods"
 					:cart-only="cartOnly"
 					@menu-clicked="handleManagementMenuClick"
-					@toggle-cart-only="cartOnly = !cartOnly"
+					@toggle-cart-only="handleToggleCartOnly"
 				/>
 
 				<!-- Main Content Container -->
@@ -2517,6 +2517,13 @@ function handleCloseShift() {
 async function handleUpdateUom(itemCode, newUom, oldUom) {
 	await cartStore.changeItemUOM(itemCode, newUom, oldUom);
 	handleRefocusBarcode();
+}
+
+function handleToggleCartOnly() {
+	cartOnly.value = !cartOnly.value;
+	nextTick(() => {
+		handleRefocusBarcode();
+	});
 }
 
 function handleRefocusBarcode() {

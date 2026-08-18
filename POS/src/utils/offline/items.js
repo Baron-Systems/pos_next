@@ -250,3 +250,60 @@ export const clearCustomersCache = async () => {
 		return false;
 	}
 };
+
+// RLS1100C scale barcode (EAN-13 with weight) support
+const SCALE_BARCODE_PREFIXES = ["02", "21"];
+const SCALE_BARCODE_LEN = 13;
+const SCALE_PLU_START = 2;
+const SCALE_PLU_LEN = 5;
+const SCALE_WEIGHT_START = 7;
+const SCALE_WEIGHT_LEN = 5;
+
+function computeEAN13CheckDigit(first12) {
+	let s = 0;
+	for (let i = 0; i < 12; i++) {
+		const d = Number.parseInt(first12[i], 10);
+		if ((11 - i) % 2 === 0) {
+			s += d;
+		} else {
+			s += d * 3;
+		}
+	}
+	return (10 - (s % 10)) % 10;
+}
+
+export const parseScaleBarcode = (barcode) => {
+	const b = (barcode || "").trim();
+	if (b.length !== SCALE_BARCODE_LEN || !/^\d+$/.test(b)) return null;
+	const prefix = SCALE_BARCODE_PREFIXES.find((p) => b.startsWith(p));
+	if (!prefix) return null;
+	const plu = b.slice(SCALE_PLU_START, SCALE_PLU_START + SCALE_PLU_LEN);
+	const weightStr = b.slice(SCALE_WEIGHT_START, SCALE_WEIGHT_START + SCALE_WEIGHT_LEN);
+	const weightGrams = Number.parseInt(weightStr, 10) || 0;
+	const base12 = prefix + plu + "0".repeat(SCALE_WEIGHT_LEN);
+	const check = computeEAN13CheckDigit(base12);
+	const baseBarcode = base12 + String(check);
+	return {
+		plu,
+		weightGrams,
+		baseBarcode,
+		weightKgs: weightGrams / 1000,
+	};
+};
+
+export const searchCachedItemByBarcode = async (barcode) => {
+	const exact = await getItemByBarcode(barcode);
+	if (exact) return { item: exact, weightKgs: null };
+
+	const parsed = parseScaleBarcode(barcode);
+	if (!parsed) return { item: null, weightKgs: null };
+
+	let item = await getItemByBarcode(parsed.baseBarcode);
+	if (!item) {
+		item = await getItemByBarcode(parsed.plu);
+	}
+	if (item) {
+		return { item, weightKgs: parsed.weightKgs };
+	}
+	return { item: null, weightKgs: null };
+};

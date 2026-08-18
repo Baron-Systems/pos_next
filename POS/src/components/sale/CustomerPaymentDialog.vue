@@ -11,7 +11,7 @@
 <p v-if="localCustomer.mobile_no" class="text-xs text-gray-500">{{ localCustomer.mobile_no }}</p>
 <div class="flex items-center gap-2 mt-1">
   <span class="text-xs text-gray-600">{{ __('إرسال تذكير') }}</span>
-  <Button @click="sendReminder" variant="solid" size="sm" class="!bg-white !hover:bg-gray-100 border-none p-1.5" :title="__('إرسال تذكير عبر واتساب')">
+  <Button @click="openWhatsAppDialog" variant="solid" size="sm" class="!bg-white !hover:bg-gray-100 border-none p-1.5" :title="__('إرسال تذكير عبر واتساب')">
     <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" class="w-6 h-6" />
   </Button>
 </div>
@@ -113,6 +113,84 @@ variant="solid"
 {{ __('اختر عميلا لعرض تفاصيل الدفع') }}
 </div>
 </div>
+</template>
+</Dialog>
+
+<!-- WhatsApp Dialog -->
+<Dialog v-model="showWhatsAppDialog" :options="{ title: __('إرسال تذكير عبر واتساب'), size: 'md' }">
+<template #body-content>
+<div class="flex flex-col gap-4">
+<div v-if="customerPhone" class="bg-green-50 border border-green-200 rounded-lg p-3">
+<p class="text-sm text-green-800">
+<span class="font-semibold">{{ __('رقم العميل:') }}</span> {{ customerPhone }}
+</p>
+</div>
+<div v-else class="space-y-3">
+<p class="text-sm text-gray-600">{{ __('لم يتم العثور على رقم هاتف للعميل. يرجى إدخال الرقم:') }}</p>
+<div class="flex gap-2">
+<select
+v-model="countryCode"
+class="px-2 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+>
+<option value="+970">+970 🇵🇸</option>
+<option value="+972">+972 🇮🇱</option>
+<option value="+962">+962 🇯🇴</option>
+<option value="+966">+966 🇸🇦</option>
+<option value="+971">+971 🇦🇪</option>
+<option value="+20">+20 🇪🇬</option>
+<option value="+1">+1 🇺🇸</option>
+<option value="+44">+44 🇬🇧</option>
+</select>
+<input
+v-model="tempPhoneInput"
+type="tel"
+:placeholder="__('أدخل رقم الهاتف')"
+class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+/>
+</div>
+<p class="text-xs text-gray-500">{{ __('سيتم حفظ الرقم في بيانات العميل تلقائياً') }}</p>
+</div>
+<div class="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+<p class="text-xs font-semibold text-gray-700">{{ __('محتوى الرسالة:') }}</p>
+<div v-if="loading" class="text-sm text-gray-500">{{ __('جاري تحميل البيانات...') }}</div>
+<template v-else>
+<p class="text-sm text-gray-600">{{ __('تاريخ آخر دفعة:') }} {{ lastPaymentDate ? formatDate(lastPaymentDate) : __('غير متوفر') }}</p>
+<p class="text-sm text-gray-600">{{ __('مبلغ آخر دفعة:') }} {{ formatCurrency(lastPaymentAmount) }}</p>
+<p v-if="!lastPaymentDate" class="text-xs text-orange-600">{{ __('لم يتم العثور على دفعات سابقة') }}</p>
+</template>
+<p class="text-sm text-gray-600">{{ __('المبلغ المتبقي:') }} {{ formatCurrency(accountBalance) }}</p>
+<p class="text-sm text-gray-600">{{ __('الشركة:') }} {{ props.company }}</p>
+</div>
+<div class="flex items-center gap-2">
+<input
+id="includePortal"
+type="checkbox"
+v-model="includePortalInfo"
+class="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+/>
+<label for="includePortal" class="text-sm text-gray-700 cursor-pointer">{{ __('تضمين معلومات بوابة العميل') }}</label>
+</div>
+<div v-if="includePortalInfo" class="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-1 text-sm">
+<p class="text-blue-800"><span class="font-semibold">{{ __('رابط البوابة:') }}</span> {{ portalUrl }}</p>
+<p class="text-blue-800"><span class="font-semibold">{{ __('اسم المستخدم:') }}</span> {{ localCustomer?.customer_name || localCustomer?.name }}</p>
+<p class="text-blue-800"><span class="font-semibold">{{ __('رقم العميل:') }}</span> {{ localCustomer?.id_no || '-' }}</p>
+</div>
+<div class="space-y-2">
+<label class="block text-xs font-medium text-gray-600">{{ __('إضافة نص:') }}</label>
+<textarea
+v-model="customMessageText"
+:placeholder="__('أضف ملاحظات أو تفاصيل إضافية...')"
+rows="3"
+class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+></textarea>
+</div>
+</div>
+</template>
+<template #actions>
+<Button variant="outline" @click="closeWhatsAppDialog">{{ __('إلغاء') }}</Button>
+<Button theme="green" variant="solid" @click="sendWhatsAppMessage" :loading="updatingPhone" :disabled="!customerPhone && !tempPhoneInput">
+{{ updatingPhone ? __('جاري الحفظ...') : __('إرسال عبر واتساب') }}
+</Button>
 </template>
 </Dialog>
 </template>
@@ -235,20 +313,122 @@ paying.value = false
 
 
 
-function sendReminder() {
-  const rawPhone = localCustomer.value?.mobile_no || ''
-  if (!rawPhone) {
-    showError(__('لا يوجد رقم هاتف للعميل'))
+const lastPayment = computed(() => {
+  const payments = statement.value.filter(t => t.type === 'payment')
+  if (!payments.length) return null
+  const sorted = [...payments].sort((a, b) => {
+    const dateDiff = new Date(b.posting_date) - new Date(a.posting_date)
+    if (dateDiff !== 0) return dateDiff
+    return b.name.localeCompare(a.name)
+  })
+  return sorted[0]
+})
+
+const lastPaymentDate = computed(() => lastPayment.value?.posting_date || null)
+const lastPaymentAmount = computed(() => lastPayment.value?.paid_amount || 0)
+
+const showWhatsAppDialog = ref(false)
+const customerPhone = ref("")
+const tempPhoneInput = ref("")
+const countryCode = ref("+970")
+const customMessageText = ref("")
+const includePortalInfo = ref(true)
+const updatingPhone = ref(false)
+
+const portalUrl = computed(() => {
+  const domain = window.location.origin
+  return `${domain}/portal`
+})
+
+async function openWhatsAppDialog() {
+  const phone = localCustomer.value?.mobile_no || localCustomer.value?.phone || ""
+  customerPhone.value = phone
+  if (!phone) {
+    tempPhoneInput.value = ""
+  }
+  await loadData()
+  showWhatsAppDialog.value = true
+}
+
+function closeWhatsAppDialog() {
+  showWhatsAppDialog.value = false
+  customerPhone.value = ""
+  tempPhoneInput.value = ""
+  countryCode.value = "+970"
+  customMessageText.value = ""
+  includePortalInfo.value = true
+}
+
+async function updateCustomerPhone(phoneNumber) {
+  const cust = props.customer?.name || props.customer
+  if (!cust) return false
+  try {
+    updatingPhone.value = true
+    await call("pos_next.api.customers.update_customer_phone", {
+      customer: cust,
+      mobile_no: phoneNumber
+    })
+    if (props.customer) {
+      props.customer.mobile_no = phoneNumber
+    }
+    return true
+  } catch (e) {
+    showError(e?.message || __('فشل تحديث رقم الهاتف'))
+    return false
+  } finally {
+    updatingPhone.value = false
+  }
+}
+
+async function sendWhatsAppMessage() {
+  let phone = customerPhone.value
+  if (!phone) {
+    const fullNumber = countryCode.value + tempPhoneInput.value.replace(/^0+/, '')
+    phone = fullNumber
+    if (!tempPhoneInput.value) {
+      showError(__('يرجى إدخال رقم الهاتف'))
+      return
+    }
+    const phoneUpdated = await updateCustomerPhone(fullNumber)
+    if (!phoneUpdated) {
+      showError(__('لم يتم حفظ الرقم في بيانات العميل، لكن سيتم إرسال الرسالة'))
+    }
+  }
+  phone = phone.replace(/[^\d+]/g, '')
+  if (!phone) {
+    showError(__('رقم الهاتف غير صالح'))
     return
   }
-  const phone = '+' + rawPhone.replace(/[^\d]/g, '')
+  if (!phone.startsWith('+')) {
+    phone = '+' + phone
+  }
+  const companyName = props.company || ''
   const remaining = formatCurrency(accountBalance.value)
-  const message = encodeURIComponent(
-    `مرحبا ${localCustomer.value?.customer_name || ''}\n` +
-    `رصيد الحساب: ${remaining}\n` +
-    `يرجى تسديد المبلغ المستحق. شكرا لتعاملكم معنا`
-  )
+  const lastPayDate = lastPaymentDate.value ? formatDate(lastPaymentDate.value) : __('غير متوفر')
+  const lastPayAmount = formatCurrency(lastPaymentAmount.value)
+  const lastPayRef = lastPayment.value?.name || '-'
+  let messageText = `مرحباً ${localCustomer.value?.customer_name || ''}\n` +
+    `${companyName}\n` +
+    `تاريخ آخر دفعة: ${lastPayDate}\n` +
+    `مبلغ آخر دفعة: ${lastPayAmount}\n` +
+    `رقم الدفعة: ${lastPayRef}\n` +
+    `المبلغ المتبقي: ${remaining}\n` +
+    `شكراً لتعاملكم معنا`
+  if (includePortalInfo.value) {
+    const portalLink = portalUrl.value
+    const username = localCustomer.value?.customer_name || localCustomer.value?.name || ''
+    const customerId = localCustomer.value?.id_no || '-'
+    messageText += `\n\nمعلومات بوابة العميل:\n`
+    messageText += `رابط الدخول: ${portalLink}\n`
+    messageText += `اسم المستخدم: ${username}\n`
+    messageText += `رقم العميل: ${customerId}`
+  }
+  if (customMessageText.value && customMessageText.value.trim()) {
+    messageText += `\n\n${customMessageText.value.trim()}`
+  }
+  const message = encodeURIComponent(messageText)
   window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${message}`, '_blank')
+  closeWhatsAppDialog()
 }
 
 function printReport() {

@@ -11,7 +11,7 @@
 					<label class="text-sm font-medium text-gray-700">{{ __('من حساب') }}</label>
 					<select
 						v-model="fromModeOfPayment"
-						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
+						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
 					>
 						<option value="" disabled>{{ __('اختر حساب المصدر') }}</option>
 						<option v-for="method in paymentMethods" :key="method.mode_of_payment" :value="method.mode_of_payment">
@@ -25,7 +25,7 @@
 					<label class="text-sm font-medium text-gray-700">{{ __('إلى حساب') }}</label>
 					<select
 						v-model="toModeOfPayment"
-						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
+						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
 					>
 						<option value="" disabled>{{ __('اختر حساب الهدف') }}</option>
 						<option v-for="method in paymentMethods" :key="method.mode_of_payment" :value="method.mode_of_payment">
@@ -43,7 +43,7 @@
 						type="number"
 						min="0.01"
 						step="0.01"
-						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 						:placeholder="__('أدخل المبلغ')"
 						@focus="handleAmountFocus"
 						@click="handleAmountClick"
@@ -57,7 +57,7 @@
 					<input
 						v-model="postingDate"
 						type="date"
-						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 					/>
 				</div>
 
@@ -67,7 +67,7 @@
 					<input
 						v-model="referenceNo"
 						type="text"
-						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 						:placeholder="__('اختياري')"
 					/>
 				</div>
@@ -78,7 +78,7 @@
 					<input
 						v-model="remarks"
 						type="text"
-						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 						:placeholder="__('اختياري')"
 					/>
 				</div>
@@ -103,7 +103,7 @@
 				<Button
 					class="flex-1"
 					variant="solid"
-					theme="emerald"
+					theme="blue"
 					:loading="isSubmitting"
 					:disabled="!canSubmit"
 					@click="handleSubmit"
@@ -142,6 +142,24 @@ const isSubmitting = ref(false)
 const errors = ref([])
 const amountInput = ref(null)
 
+function getCashPaymentMethod(methods) {
+	if (!methods || methods.length === 0) return null
+	const defaultCash = methods.find(
+		(m) => (m.default === 1 || m.default === true) && (m.type || "").toLowerCase() === "cash"
+	)
+	if (defaultCash) return defaultCash
+	const byType = methods.find((m) => (m.type || "").toLowerCase() === "cash")
+	if (byType) return byType
+	const byName = methods.find((m) => /نقدي|cash/i.test(m.mode_of_payment))
+	return byName || methods.find((m) => m.default === 1 || m.default === true) || methods[0]
+}
+
+function setDefaultFromPaymentMethod() {
+	if (fromModeOfPayment.value || !props.paymentMethods?.length) return
+	const method = getCashPaymentMethod(props.paymentMethods)
+	fromModeOfPayment.value = method ? method.mode_of_payment : props.paymentMethods[0].mode_of_payment
+}
+
 const canSubmit = computed(() =>
 	props.company &&
 	fromModeOfPayment.value &&
@@ -156,11 +174,16 @@ watch(
 		if (newVal) {
 			errors.value = []
 			postingDate.value = new Date().toISOString().split("T")[0]
+			setDefaultFromPaymentMethod()
 		} else if (oldVal === true && newVal === false) {
 			focusBarcode()
 		}
 	},
 )
+
+watch(() => props.paymentMethods, (methods) => {
+	if (methods?.length) setDefaultFromPaymentMethod()
+}, { immediate: true })
 
 function focusBarcode() {
 	// Wait for the Dialog's own focus/transition to finish before taking focus
