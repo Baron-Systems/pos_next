@@ -1329,7 +1329,26 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 
 			log.debug("Searching by barcode", { posProfile: posProfile.value, barcode })
 
-			// Offline/cache-first: resolve by barcode locally (supports regular and RLS1100C scale barcodes)
+			// Online: always ask the server first for authoritative UOM/price
+			if (!isOffline()) {
+				try {
+					const result = await searchByBarcodeResource.submit({
+						barcode: barcode,
+						pos_profile: posProfile.value,
+						price_list: priceListStore.activePriceList,
+					})
+					const item = result?.message || result
+					if (item && item.item_code) {
+						log.debug("Found item by barcode on server", { barcode, item_code: item.item_code })
+						return item
+					}
+					log.debug("Server returned no item for barcode, trying cache", { barcode })
+				} catch (serverError) {
+					log.warn("Server barcode search failed, falling back to cache", serverError)
+				}
+			}
+
+			// Offline/cache fallback: resolve by barcode locally (supports regular and RLS1100C scale barcodes)
 			if (isOffline() || cacheReady.value) {
 				const { item: cachedItem, weightKgs } = await searchCachedItemByBarcode(barcode)
 				if (cachedItem && cachedItem.item_code) {
@@ -1345,21 +1364,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 				}
 			}
 
-			const result = await searchByBarcodeResource.submit({
-				barcode: barcode,
-				pos_profile: posProfile.value,
-				price_list: priceListStore.activePriceList,
-			})
-
-			const item = result?.message || result
-
-			// Validate that item exists and has required fields
-			if (!item || !item.item_code) {
-				log.debug("No item found for barcode", { barcode })
-				return null
-			}
-
-			return item
+			return null
 		} catch (error) {
 			log.error("Store searchByBarcode error", error)
 			throw error
