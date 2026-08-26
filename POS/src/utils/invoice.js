@@ -4,6 +4,40 @@
  */
 
 /**
+ * POS rounding to the nearest 0.5 using thresholds.
+ * Mirrors the server-side _round_pos_amount logic in pos_next/overrides/sales_invoice.py:
+ * - fractional part >= 0.80  -> round up to next whole number
+ * - fractional part >= 0.40  -> round to .5
+ * - fractional part <  0.40  -> round down to whole number
+ *
+ * @param {number} amount - The amount to round
+ * @param {number} precision - Decimal precision (default 2)
+ * @returns {number} Rounded amount
+ */
+export function roundPosAmount(amount, precision = 2) {
+	const value = Number(amount) || 0
+	if (!value) {
+		return Number((0).toFixed(precision))
+	}
+
+	const sign = value >= 0 ? 1 : -1
+	const absValue = Math.abs(value)
+	const integerPart = Math.floor(absValue)
+	const fractional = absValue - integerPart
+
+	let rounded
+	if (fractional >= 0.8) {
+		rounded = integerPart + 1
+	} else if (fractional >= 0.4) {
+		rounded = integerPart + 0.5
+	} else {
+		rounded = integerPart
+	}
+
+	return Number((sign * rounded).toFixed(precision))
+}
+
+/**
  * Get the appropriate CSS classes for invoice status badge
  * @param {Object} invoice - Invoice object with status and docstatus fields
  * @returns {string} Tailwind CSS classes for the status badge

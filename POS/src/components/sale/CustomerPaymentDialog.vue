@@ -34,6 +34,7 @@ type="number"
 class="payment-amount-input"
 :placeholder="__('أدخل المبلغ')"
 step="0.01"
+@input="(val) => paymentAmount = Number(val)"
 @keyup.enter="executePayment"
 />
 </div>
@@ -41,7 +42,7 @@ step="0.01"
 @click="executePayment"
 :loading="paying"
 :disabled="!paymentAmount || paymentAmount === 0"
-theme="green"
+:theme="paymentAmount < 0 ? 'red' : 'green'"
 variant="solid"
 >
 {{ paymentAmount < 0 ? __('الدفع للعميل') : __('القبض من العميل') }}

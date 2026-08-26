@@ -105,7 +105,7 @@ fixtures = [
 					"POS Profile-allow_supplier_payment",
 "POS Profile-posa_allow_stock_lookup",
 "POS Profile-posa_shift_password",
-"POS Profile-posa_allow_shift_expense"
+"POS Profile-posa_allow_shift_expense",
 				]
 			]
 		]

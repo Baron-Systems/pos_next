@@ -3,6 +3,7 @@ import { usePOSOffersStore } from "@/stores/posOffers"
 import { usePOSPriceListStore } from "@/stores/posPriceList"
 import { usePOSSettingsStore } from "@/stores/posSettings"
 import { parseError } from "@/utils/errorHandler"
+import { roundPosAmount } from "@/utils/invoice"
 import {
 	checkStockAvailability,
 	formatStockError,
@@ -86,7 +87,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 		subtotal,
 		totalTax,
 		totalDiscount,
-		grandTotal,
+		grandTotal: rawGrandTotal,
 		posProfile,
 		posOpeningShift,
 		payments,
@@ -173,6 +174,18 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	const itemCount = computed(() => invoiceItems.value.length)
 	const isEmpty = computed(() => invoiceItems.value.length === 0)
 	const hasCustomer = computed(() => !!customer.value)
+
+	// Grand total with POS rounding applied when rounding is enabled.
+	// When disable_rounded_total = 0 (rounding enabled), applies 0.5-step rounding
+	// to match the server-side _round_pos_amount logic.
+	// When disable_rounded_total = 1 (rounding disabled), returns the raw total.
+	const grandTotal = computed(() => {
+		const raw = rawGrandTotal.value
+		if (settingsStore.disableRoundedTotal) {
+			return raw
+		}
+		return roundPosAmount(raw)
+	})
 
 	// Actions
 	function addItem(item, qty = 1, autoAdd = false, currentProfile = null) {

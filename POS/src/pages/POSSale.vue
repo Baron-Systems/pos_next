@@ -561,6 +561,7 @@
 				@create-return="handleCreateReturnFromHistory"
 				@view-invoice="handleViewInvoice"
 				@print-invoice="handlePrintInvoice"
+				@copy-invoice="handleCopyInvoice"
 				@after-leave="handleRefocusBarcode"
 			/>
 
@@ -633,6 +634,7 @@
 				:draft-invoices="draftsStore.drafts"
 				@view-invoice="handleViewInvoice"
 				@print-invoice="handlePrintInvoice"
+				@copy-invoice="handleCopyInvoice"
 				@load-draft="handleLoadDraftFromManagement"
 				@delete-draft="handleDeleteDraft"
 				@refresh-history="loadInvoiceHistoryData"
@@ -2673,6 +2675,64 @@ function handleBatchSerialSelected(batchSerial) {
 function handleCreateReturnFromHistory(invoice) {
 	uiStore.showReturnDialog = true;
 	showWarning(__("Creating return for invoice {0}", [invoice.name]));
+}
+
+async function handleCopyInvoice(invoice) {
+	try {
+		// Fetch full invoice details (with items) from server
+		const result = await call("pos_next.api.invoices.get_invoice", {
+			invoice_name: invoice.name,
+		});
+
+		if (!result || !result.items || result.items.length === 0) {
+			showWarning(__("Invoice {0} has no items to copy", [invoice.name]));
+			return;
+		}
+
+		// Clear current cart before copying items (without setting a customer)
+		await cartStore.clearCart();
+		previousCartHash = "";
+
+		// Add each invoice item to the cart
+		// Map server 'qty' field to 'quantity' for internal consistency
+		for (const item of result.items) {
+			const cartItem = {
+				...item,
+				quantity: item.qty,
+				rate: item.rate,
+				price_list_rate: item.rate,
+				uom: item.uom || item.stock_uom,
+			};
+			try {
+				cartStore.addItem(cartItem, item.qty, false, shiftStore.currentProfile);
+			} catch (error) {
+				log.error(`Failed to copy item ${item.item_code}:`, error);
+				showWarning(
+					__('Skipped "{0}": {1}', [item.item_name || item.item_code, error.message])
+				);
+			}
+		}
+
+		// Rebuild incremental cache to recalculate totals
+		cartStore.rebuildIncrementalCache();
+
+		// Initialize cart hash so offer watchers work correctly
+		previousCartHash = computeCartHash();
+
+		// Close any open dialogs
+		uiStore.showHistoryDialog = false;
+		showInvoiceManagement.value = false;
+
+		showSuccess(
+			__("Copied {0} items from invoice {1} to cart", [
+				result.items.length,
+				invoice.name,
+			])
+		);
+	} catch (error) {
+		log.error("Error copying invoice items:", error);
+		showError(__("Failed to copy invoice items"));
+	}
 }
 
 async function handleCustomerCreated(newCustomer) {

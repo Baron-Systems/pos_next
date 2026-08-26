@@ -1336,6 +1336,7 @@ import { useCustomerSearchStore } from "@/stores/customerSearch";
 import { useBootstrapStore } from "@/stores/bootstrap";
 import { usePOSDraftsStore } from "@/stores/posDrafts";
 import { formatCurrency as formatCurrencyUtil, getCurrencySymbol } from "@/utils/currency";
+import { roundPosAmount } from "@/utils/invoice";
 import { useFormatters } from "@/composables/useFormatters";
 import { isOffline } from "@/utils/offline";
 import { offlineWorker } from "@/utils/offline/workerClient";
@@ -1770,7 +1771,13 @@ const displayGrandTotal = computed(() => {
 	}
 	// Always: displaySubtotal + tax - discount
 	// This makes the display consistent and intuitive
-	return displaySubtotal.value + props.taxAmount - props.discountAmount;
+	const rawTotal = displaySubtotal.value + props.taxAmount - props.discountAmount;
+	// Apply POS rounding (0.5-step) when rounding is enabled in settings
+	// so the cart displays the same total the invoice will have after creation
+	if (settingsStore.disableRoundedTotal) {
+		return rawTotal;
+	}
+	return roundPosAmount(rawTotal);
 });
 
 /**

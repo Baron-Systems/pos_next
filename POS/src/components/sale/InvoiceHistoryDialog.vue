@@ -22,6 +22,16 @@
 							</template>
 						</Input>
 					</div>
+					<select
+						v-model.number="pageSize"
+						@change="loadInvoices"
+						class="border border-gray-300 rounded-lg px-2 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+					>
+						<option :value="30">30</option>
+						<option :value="50">50</option>
+						<option :value="100">100</option>
+						<option :value="0">الكل</option>
+					</select>
 					<Button
 						variant="subtle"
 						@click="loadInvoices"
@@ -108,6 +118,16 @@
 										</svg>
 									</button>
 									<button
+										v-if="!invoice.is_return"
+										@click="copyInvoice(invoice)"
+										class="p-1.5 hover:bg-teal-50 rounded transition-colors"
+										:title="__('Copy Items to Cart')"
+									>
+										<svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+										</svg>
+									</button>
+									<button
 										v-if="invoice.docstatus === 1 && !invoice.is_return"
 										@click="createReturn(invoice)"
 										class="p-1.5 hover:bg-orange-50 rounded transition-colors"
@@ -123,12 +143,6 @@
 					</div>
 				</div>
 
-				<!-- Load More -->
-				<div v-if="hasMore && !invoicesResource.loading" class="text-center">
-					<Button variant="subtle" @click="loadMore">
-						{{ __('Load More') }}
-					</Button>
-				</div>
 			</div>
 		</template>
 		<template #actions>
@@ -161,14 +175,19 @@ function formatCurrency(amount) {
 	return formatCurrencyUtil(Number.parseFloat(amount || 0), props.currency)
 }
 
-const emit = defineEmits(["update:modelValue", "create-return", "view-invoice", "print-invoice", "after-leave"])
+const emit = defineEmits([
+	"update:modelValue",
+	"create-return",
+	"view-invoice",
+	"print-invoice",
+	"copy-invoice",
+	"after-leave",
+])
 
 const show = ref(props.modelValue)
 const invoices = ref([])
 const searchTerm = ref("")
-const page = ref(0)
-const pageSize = 20
-const hasMore = ref(true)
+const pageSize = ref(30)
 
 // Create resource for loading invoices
 const invoicesResource = createResource({
@@ -192,8 +211,8 @@ const invoicesResource = createResource({
 				"is_return",
 			],
 			order_by: "creation desc",
-			start: 0,
-			page_length: 100,
+			limit_start: 0,
+			limit_page_length: pageSize.value === 0 ? 100000 : Number(pageSize.value),
 		}
 	},
 	auto: false,
@@ -227,6 +246,12 @@ watch(show, (val) => {
 	emit("update:modelValue", val)
 })
 
+watch(pageSize, () => {
+	if (show.value && props.posProfile) {
+		invoicesResource.reload()
+	}
+})
+
 const filteredInvoices = computed(() => {
 	if (!searchTerm.value) return invoices.value
 
@@ -244,11 +269,6 @@ function loadInvoices() {
 	}
 }
 
-function loadMore() {
-	page.value++
-	loadInvoices(true)
-}
-
 function searchInvoices() {
 	// Debounced search - already filtered by computed property
 }
@@ -263,6 +283,11 @@ function printInvoice(invoice) {
 
 function createReturn(invoice) {
 	emit("create-return", invoice)
+	show.value = false
+}
+
+function copyInvoice(invoice) {
+	emit("copy-invoice", invoice)
 	show.value = false
 }
 
