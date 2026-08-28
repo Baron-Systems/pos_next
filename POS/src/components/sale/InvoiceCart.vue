@@ -1022,6 +1022,30 @@
 
 			<!-- Summary Details (continued) -->
 			<div v-if="items.length > 0" class="mb-1.5">
+				<!-- Offer Discount Display - Highlighted -->
+				<div
+					v-if="offerDiscount > 0"
+					class="flex items-center justify-between mb-0.5 bg-red-50 rounded px-1.5 py-1 -mx-0.5"
+				>
+					<div class="flex items-center gap-1">
+						<svg
+							class="w-3.5 h-3.5 text-red-600"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z"
+								clip-rule="evenodd"
+							/>
+						</svg>
+						<span class="text-xs font-bold text-red-700">{{ __("Offer Discount") }}</span>
+					</div>
+					<span class="text-sm font-extrabold text-red-600 text-center min-w-[60px]">{{
+						formatCurrency(offerDiscount)
+					}}</span>
+				</div>
+
 				<!-- Discount Display - Highlighted -->
 				<div
 					v-if="discountAmount > 0"
@@ -1392,6 +1416,10 @@ const props = defineProps({
 		default: 0,
 	},
 	discountAmount: {
+		type: Number,
+		default: 0,
+	},
+	offerDiscount: {
 		type: Number,
 		default: 0,
 	},
@@ -1769,9 +1797,9 @@ const displayGrandTotal = computed(() => {
 	if (props.items.length === 0 && props.lastInvoiceTotal > 0) {
 		return props.lastInvoiceTotal;
 	}
-	// Always: displaySubtotal + tax - discount
+	// Always: displaySubtotal + tax - offerDiscount - discountAmount
 	// This makes the display consistent and intuitive
-	const rawTotal = displaySubtotal.value + props.taxAmount - props.discountAmount;
+	const rawTotal = displaySubtotal.value + props.taxAmount - props.offerDiscount - props.discountAmount;
 	// Apply POS rounding (0.5-step) when rounding is enabled in settings
 	// so the cart displays the same total the invoice will have after creation
 	if (settingsStore.disableRoundedTotal) {

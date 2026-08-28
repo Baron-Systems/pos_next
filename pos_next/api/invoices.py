@@ -17,7 +17,7 @@ try:
     from erpnext.accounts.doctype.pricing_rule.utils import (
         get_applied_pricing_rules as erpnext_get_applied_pricing_rules,
     )
-except Exception:  # pragma: no cover - ERPNext not installed in some environments
+except Exception:
     erpnext_apply_pricing_rule = None
     erpnext_get_applied_pricing_rules = None
 
@@ -81,6 +81,73 @@ def _pricing_rule_to_string(value):
         return ""
 
     return ""
+
+
+def _resolve_customer_group(customer=None, customer_group=None, fallback_to_root=True):
+    """
+    Resolve a valid, existing Customer Group for pricing rule evaluation.
+
+    Priority:
+    1. If a Customer is provided, its Customer Group from the database is the
+       source of truth. An explicitly provided customer_group is only used if
+       it matches the customer's actual group.
+    2. If a customer_group is provided without a Customer, use it if valid.
+    3. Only if there is no Customer and no customer_group, optionally fall back
+       to a root Customer Group. This fallback is disabled for offer evaluation
+       so we never invent a group that could change Pricing Rule results.
+
+    This avoids defaulting to "All Customer Groups" or any other generic group
+    when a real customer with a specific group (e.g. فرد) is known.
+    """
+    # --- Customer present: their group is the only reliable one for pricing ---
+    if customer and frappe.db.exists("Customer", customer):
+        actual_customer_group = frappe.db.get_value(
+            "Customer", customer, "customer_group"
+        )
+
+        # Explicit group is compatible only if it matches the customer's group.
+        if (
+            customer_group
+            and actual_customer_group
+            and frappe.db.exists("Customer Group", customer_group)
+            and customer_group == actual_customer_group
+        ):
+            return customer_group
+
+        # Use the customer's actual group.
+        if actual_customer_group and frappe.db.exists(
+            "Customer Group", actual_customer_group
+        ):
+            return actual_customer_group
+
+        # Customer has no group; last chance: use a valid provided group.
+        if customer_group and frappe.db.exists("Customer Group", customer_group):
+            return customer_group
+
+        # Existing customer without a valid group: don't invent one.
+        return None
+
+    # --- No customer: use an explicit group if it is valid ---
+    if customer_group and frappe.db.exists("Customer Group", customer_group):
+        return customer_group
+
+    # --- No customer, no group, and caller allows root fallback (customer creation) ---
+    if fallback_to_root:
+        root_group = frappe.get_all(
+            "Customer Group",
+            filters={"is_group": 1},
+            or_filters=[
+                ["parent_customer_group", "=", ""],
+                ["parent_customer_group", "is", "not set"],
+            ],
+            pluck="name",
+            limit=1,
+            order_by="lft",
+        )
+        if root_group:
+            return root_group[0]
+
+    return None
 
 
 def get_payment_account(mode_of_payment, company):
@@ -516,7 +583,7 @@ def update_invoice(data):
                     {
                         "doctype": "Customer",
                         "customer_name": customer_name,
-                        "customer_group": "All Customer Groups",
+                        "customer_group": _resolve_customer_group(),
                         "territory": "All Territories",
                         "customer_type": "Individual",
                     }
@@ -615,6 +682,8 @@ def update_invoice(data):
 
         # Calculate totals and apply discounts (with rounding disabled)
         invoice_doc.calculate_taxes_and_totals()
+
+
         if invoice_doc.grand_total is None:
             invoice_doc.grand_total = 0.0
         if invoice_doc.base_grand_total is None:
@@ -1186,6 +1255,7 @@ def submit_invoice(invoice=None, data=None):
         finally:
             invoice_doc.flags.ignore_validate = old_ignore_validate
         invoice_submitted = True
+
 
         # Update linked sales orders status after successful submission
         if doctype == "Sales Invoice":
@@ -2014,9 +2084,12 @@ def apply_offers(invoice_data, selected_offers=None):
                     "Customer Data Lookup"
                 )
 
-        # If still no customer_group, use default
-        if not customer_group:
-            customer_group = "All Customer Groups"
+        # Resolve a valid customer group; never pass an invalid/missing one.
+        # Never fall back to a root group when evaluating offers, because a
+        # generic group can cause customer-group-specific pricing rules to fail.
+        customer_group = _resolve_customer_group(
+            customer, customer_group, fallback_to_root=False
+        )
 
         pricing_args = frappe._dict(
             {
@@ -2035,11 +2108,13 @@ def apply_offers(invoice_data, selected_offers=None):
                 or invoice.get("selling_price_list")
                 or profile.get("selling_price_list"),
                 "customer": customer,
-                "customer_group": customer_group,
                 "territory": territory,
                 "items": pricing_items,
             }
         )
+        if customer_group:
+            pricing_args.customer_group = customer_group
+
 
         # Call ERPNext pricing engine - it handles all conflicts based on priority
         #
@@ -2052,7 +2127,13 @@ def apply_offers(invoice_data, selected_offers=None):
         # needs to see ALL items (1 Book + 1 Camera) to know total qty=2, not just each item's qty=1
         #
         # See: erpnext/accounts/doctype/pricing_rule/utils.py -> get_qty_and_rate_for_mixed_conditions()
-        pricing_results = erpnext_apply_pricing_rule(pricing_args, doc=pricing_args) or []
+        #
+        # CRITICAL: args and doc must be different objects. apply_pricing_rule does
+        # `args.pop("items")`, so if doc is the same dict it loses the items list
+        # and mixed_conditions rules cannot sum quantities across all cart items.
+        args_for_pricing = frappe._dict(pricing_args)
+        pricing_results = erpnext_apply_pricing_rule(args_for_pricing, doc=pricing_args) or []
+
 
         if not pricing_results:
             return {"items": items}
@@ -2243,11 +2324,12 @@ def apply_offers(invoice_data, selected_offers=None):
                 ].promotional_scheme
                 free_items.append(free_item_doc)
 
-        return {
+        response_payload = {
             "items": [dict(item) for item in prepared_items],
             "free_items": [dict(item) for item in free_items],
             "applied_pricing_rules": sorted(applied_rules),
         }
+        return response_payload
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Apply Offers Error")
         frappe.throw(_("Error applying offers: {0}").format(str(e)))

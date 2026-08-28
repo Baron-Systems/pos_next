@@ -1,5 +1,5 @@
 import { createResource } from "frappe-ui"
-import { computed, ref, toRaw } from "vue"
+import { computed, ref, toRaw, watchEffect } from "vue"
 import { isOffline } from "@/utils/offline"
 import { useSerialNumberStore } from "@/stores/serialNumber"
 import { usePOSPriceListStore } from "@/stores/posPriceList"
@@ -31,6 +31,21 @@ export function useInvoice() {
 	const couponCode = ref(null)
 	const taxRules = ref([]) // Tax rules from POS Profile
 	const taxInclusive = ref(false) // Tax inclusive setting from POS Settings
+
+	/**
+	 * Determine if an item has an active offer/pricing rule.
+	 * Used to separate offer discount from manual discount in UI and totals.
+	 */
+	function hasOffer(item) {
+		if (!item) return false
+		const pr = item.pricing_rules
+		if (Array.isArray(pr) && pr.length > 0) return true
+		if (typeof pr === "string" && pr.trim().length > 0) return true
+		const ps = item.applied_promotional_schemes
+		if (Array.isArray(ps) && ps.length > 0) return true
+		if (typeof ps === "string" && ps.trim().length > 0) return true
+		return false
+	}
 
 	// Submission state - prevents duplicate submissions
 	const isSubmitting = ref(false)
@@ -140,6 +155,26 @@ export function useInvoice() {
 	// ========================================================================
 	const subtotal = computed(() => _cachedSubtotal.value)
 	const totalTax = computed(() => _cachedTotalTax.value)
+	// Offer discount: only from pricing rules / promotional schemes
+	const offerDiscount = computed(() =>
+		invoiceItems.value.reduce(
+			(sum, item) => (hasOffer(item) ? sum + (item.discount_amount || 0) : sum),
+			0,
+		),
+	)
+	// Manual discount: per-item manual discount + additional/coupon discount
+	const manualItemDiscount = computed(() =>
+		invoiceItems.value.reduce(
+			(sum, item) =>
+				!hasOffer(item) && (item.discount_amount || 0) > 0
+					? sum + item.discount_amount
+					: sum,
+			0,
+		),
+	)
+	const manualDiscount = computed(
+		() => manualItemDiscount.value + (additionalDiscount.value || 0),
+	)
 	const totalDiscount = computed(
 		() => _cachedTotalDiscount.value + (additionalDiscount.value || 0),
 	)
@@ -242,6 +277,9 @@ export function useInvoice() {
 				// Add sales order linking fields - critical for status updates
 				against_sales_order: item.against_sales_order || null,
 				so_detail: item.so_detail || null,
+				// Preserve offer/pricing rule identifiers so hasOffer() can classify discounts
+				pricing_rules: item.pricing_rules,
+				applied_promotional_schemes: item.applied_promotional_schemes,
 			}
 			// Add new item to the beginning of the array (first position)
 			invoiceItems.value.unshift(newItem)
@@ -378,7 +416,9 @@ export function useInvoice() {
 			const oldTax = item.tax_amount || 0
 			const oldDiscount = item.discount_amount || 0
 
+			const oldRate = item.rate
 			item.rate = Number.parseFloat(rate) || 0
+			item.price_list_rate = item.rate
 			recalculateItem(item)
 
 			// Move updated item to first position
@@ -592,21 +632,39 @@ export function useInvoice() {
 	 * @param {Object} item - Invoice item object with quantity, rates, and discount fields
 	 */
 	function recalculateItem(item) {
-		// Use the current rate as the base (respects manually edited prices)
-		// Fall back to price_list_rate only if rate is not set
-		const effectiveRate = item.rate || item.price_list_rate || 0
-		const baseAmount = item.quantity * effectiveRate
+		// price_list_rate is the gross reference price (pre-discount).
+		// If price_list_rate is missing, fall back to rate, but then rate is
+		// treated as the gross list price.
+		const qty = item.quantity || 1
+		const priceListRate = Math.max(0, item.price_list_rate || item.rate || 0)
+		const baseAmount = qty * priceListRate
 
-		// Calculate discount from either percentage or fixed amount
+		// Detect whether the item rate is already a discounted net rate.
+		// This can happen when ERPNext returns a fixed Rate pricing rule or
+		// any response where rate < price_list_rate. In that case we derive
+		// the discount from the difference and do NOT apply the percentage again.
+		const itemRate = Math.max(0, item.rate || 0)
 		let discountAmount = 0
-		if (item.discount_percentage > 0) {
-			discountAmount = (baseAmount * item.discount_percentage) / 100
+		let discountPercentage = 0
+
+		if (priceListRate > 0 && itemRate > 0 && itemRate < priceListRate) {
+			discountPercentage = ((priceListRate - itemRate) / priceListRate) * 100
+			discountAmount = (priceListRate - itemRate) * qty
+		} else if (item.discount_percentage > 0) {
+			discountPercentage = item.discount_percentage
+			discountAmount = (baseAmount * discountPercentage) / 100
 		} else if (item.discount_amount > 0) {
-			discountAmount = item.discount_amount
-			// Sync percentage when amount is provided directly
-			item.discount_percentage =
-				baseAmount > 0 ? (discountAmount / baseAmount) * 100 : 0
+			// discount_amount is the total line discount; clamp to the base
+			discountAmount = Math.min(item.discount_amount, baseAmount)
+			discountPercentage = baseAmount > 0 ? (discountAmount / baseAmount) * 100 : 0
 		}
+
+		// Keep both rate and price_list_rate as the gross list price so the
+		// subtotal and discount fields are always consistent and double-counting
+		// is avoided. The actual net selling price is stored in amount/qty.
+		item.price_list_rate = priceListRate
+		item.rate = priceListRate
+		item.discount_percentage = discountPercentage
 		item.discount_amount = discountAmount
 
 		// Calculate tax based on inclusive/exclusive mode
@@ -627,9 +685,7 @@ export function useInvoice() {
 
 		// Update item fields
 		item.tax_amount = taxAmount
-		// Keep the current rate (do NOT overwrite with price_list_rate)
-		// This preserves manually edited prices
-		item.amount = netAmount    // Net amount for backend calculations
+		item.amount = netAmount // Net amount for backend calculations
 	}
 
 	/**
@@ -1100,6 +1156,33 @@ export function useInvoice() {
 		rebuildIncrementalCache()
 	}
 
+	// TEMPORARY: Diagnostic logging for offer discount trace
+	watchEffect(() => {
+		const items = invoiceItems.value
+		console.group("[useInvoice diagnostics]")
+		console.log("subtotal:", subtotal.value)
+		console.log("totalTax:", totalTax.value)
+		console.log("totalDiscount:", totalDiscount.value)
+		console.log("offerDiscount:", offerDiscount.value)
+		console.log("manualDiscount:", manualDiscount.value)
+		console.log("grandTotal:", grandTotal.value)
+		console.log("additionalDiscount:", additionalDiscount.value)
+		items.forEach((item, idx) => {
+			console.log(`item[${idx}]`, {
+				item_code: item.item_code,
+				quantity: item.quantity,
+				price_list_rate: item.price_list_rate,
+				rate: item.rate,
+				discount_percentage: item.discount_percentage,
+				discount_amount: item.discount_amount,
+				pricing_rules: item.pricing_rules,
+				applied_promotional_schemes: item.applied_promotional_schemes,
+				hasOffer: hasOffer(item),
+			})
+		})
+		console.groupEnd()
+	})
+
 	return {
 		// State
 		invoiceItems,
@@ -1118,6 +1201,8 @@ export function useInvoice() {
 		subtotal,
 		totalTax,
 		totalDiscount,
+		offerDiscount,
+		manualDiscount,
 		grandTotal,
 		totalPaid,
 		remainingAmount,

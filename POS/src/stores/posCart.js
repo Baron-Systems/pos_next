@@ -87,6 +87,8 @@ export const usePOSCartStore = defineStore("posCart", () => {
 		subtotal,
 		totalTax,
 		totalDiscount,
+		offerDiscount,
+		manualDiscount,
 		grandTotal: rawGrandTotal,
 		posProfile,
 		posOpeningShift,
@@ -358,30 +360,99 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	/**
 	 * Sync discounts from server response to cart items.
 	 * Server returns items in same order as sent (handles duplicate SKUs).
+	 *
+	 * IMPORTANT: We keep price_list_rate as the original gross list price and
+	 * derive the offer discount from it. If the server already returned a
+	 * discounted rate (rate < price_list_rate), we convert the difference into
+	 * a discount percentage/amount so recalculateItem never double-discounts.
 	 */
 	function applyDiscountsFromServer(serverItems) {
 		if (!Array.isArray(serverItems)) return false
+
+		console.group("[applyDiscountsFromServer] input")
+		__diagnosticLogItems("serverItems", serverItems)
+		console.groupEnd()
 
 		let hasDiscounts = false
 
 		invoiceItems.value.forEach((item, index) => {
 			const serverItem = serverItems[index] || {}
-			const discountPct = Number.parseFloat(serverItem.discount_percentage) || 0
-			const discountAmt = Number.parseFloat(serverItem.discount_amount) || 0
 
-			// Only update if server applied a pricing rule or discount
-			if (hasPricingRules(serverItem.pricing_rules) || discountPct > 0 || discountAmt > 0) {
-				item.discount_percentage = discountPct
-				item.discount_amount = discountAmt
-				item.pricing_rules = serverItem.pricing_rules
-				hasDiscounts = discountPct > 0 || discountAmt > 0
+			// Keep the original gross list price as the reference.
+			// Do NOT let the server overwrite it with a discounted net rate.
+			const originalPriceListRate = Number.parseFloat(item.price_list_rate || item.rate || 0)
+			const originalRate = Number.parseFloat(item.rate || originalPriceListRate || 0)
+			const grossListRate = originalPriceListRate > 0
+				? originalPriceListRate
+				: (originalRate > 0 ? originalRate : 0)
+
+			const serverPriceListRate = Number.parseFloat(serverItem.price_list_rate) || 0
+			const serverRate = Number.parseFloat(serverItem.rate) || 0
+			const serverDiscountPct = Number.parseFloat(serverItem.discount_percentage) || 0
+			const serverDiscountAmt = Number.parseFloat(serverItem.discount_amount) || 0
+			const serverPricingRules = serverItem.pricing_rules
+			const serverPromoSchemes = serverItem.applied_promotional_schemes
+
+			// Only update if the server applied a pricing rule / promotion.
+			const offerApplied =
+				hasPricingRules(serverPricingRules) ||
+				serverDiscountPct > 0 ||
+				serverDiscountAmt > 0 ||
+				(serverRate > 0 && grossListRate > 0 && serverRate < grossListRate) ||
+				(serverPriceListRate > 0 && grossListRate > 0 && serverPriceListRate < grossListRate)
+
+			if (offerApplied && grossListRate > 0) {
+				let discountPercentage = 0
+				let discountAmount = 0
+
+				// 1. Server returned a discounted net rate (fixed Rate rule / included tax).
+				if (serverRate > 0 && serverRate < grossListRate) {
+					discountPercentage = ((grossListRate - serverRate) / grossListRate) * 100
+					discountAmount = (grossListRate - serverRate) * item.quantity
+				}
+				// 2. Rate pricing rule: server lowered price_list_rate but rate stayed original.
+				else if (
+					serverPriceListRate > 0 &&
+					serverPriceListRate < grossListRate &&
+					serverDiscountPct === 0 &&
+					serverDiscountAmt === 0
+				) {
+					discountPercentage = ((grossListRate - serverPriceListRate) / grossListRate) * 100
+					discountAmount = (grossListRate - serverPriceListRate) * item.quantity
+				}
+				// 3. Discount percentage / amount pricing rule.
+				else if (serverDiscountPct > 0) {
+					discountPercentage = serverDiscountPct
+					discountAmount = (grossListRate * item.quantity * serverDiscountPct) / 100
+				} else if (serverDiscountAmt > 0) {
+					discountAmount = Math.min(
+						serverDiscountAmt,
+						grossListRate * item.quantity,
+					)
+					discountPercentage = (discountAmount / (grossListRate * item.quantity)) * 100
+				}
+
+				item.discount_percentage = discountPercentage
+				item.discount_amount = discountAmount
+				item.pricing_rules = serverPricingRules
+				item.applied_promotional_schemes = serverPromoSchemes
+
+				// Preserve the original gross list price; the net selling price lives in amount/qty.
+				item.price_list_rate = grossListRate
+				item.rate = grossListRate
+
+				hasDiscounts = discountPercentage > 0 || discountAmount > 0
 			}
-			// Otherwise preserve existing manual discount
 
 			recalculateItem(item)
 		})
 
 		rebuildIncrementalCache()
+
+		console.group("[applyDiscountsFromServer] output invoiceItems")
+		__diagnosticLogItems("invoiceItems", invoiceItems.value)
+		console.groupEnd()
+
 		return hasDiscounts
 	}
 
@@ -434,16 +505,54 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	 * If backend returns empty applied_pricing_rules, it means NO offers were applied.
 	 * Previously we had a fallback that caused false "applied" status.
 	 */
+	function __diagnosticExtract(item) {
+		if (!item) return null
+		return {
+			item_code: item.item_code,
+			qty: item.qty ?? item.quantity,
+			price_list_rate: item.price_list_rate,
+			rate: item.rate,
+			discount_percentage: item.discount_percentage,
+			discount_amount: item.discount_amount,
+			pricing_rules: item.pricing_rules,
+			applied_promotional_schemes: item.applied_promotional_schemes,
+		}
+	}
+
+	function __diagnosticLogItems(label, items) {
+		if (!Array.isArray(items)) {
+			console.log(label, "not an array", items)
+			return
+		}
+		console.group(label)
+		console.table(items.map(__diagnosticExtract))
+		console.groupEnd()
+	}
+
 	function parseOfferResponse(response) {
 		const payload = response?.message || response || {}
 
-		return {
+		console.group("[parseOfferResponse] raw apply_offers response")
+		console.log("applied_pricing_rules:", payload.applied_pricing_rules)
+		console.log("free_items:", payload.free_items)
+		__diagnosticLogItems("items", payload.items)
+		console.groupEnd()
+
+		const result = {
 			items: Array.isArray(payload.items) ? payload.items : [],
 			freeItems: Array.isArray(payload.free_items) ? payload.free_items : [],
 			// CRITICAL: Only trust explicitly returned rules - NO FALLBACK
 			// If backend doesn't return applied_pricing_rules, NO offers were applied
 			appliedRules: Array.isArray(payload.applied_pricing_rules) ? payload.applied_pricing_rules : []
 		}
+
+		console.group("[parseOfferResponse] parsed")
+		console.log("appliedRules:", result.appliedRules)
+		console.log("freeItems:", result.freeItems)
+		__diagnosticLogItems("items", result.items)
+		console.groupEnd()
+
+		return result
 	}
 
 	function getAppliedOfferCodes() {
@@ -1289,6 +1398,14 @@ export const usePOSCartStore = defineStore("posCart", () => {
 		cartItem.conversion_factor = uomData?.conversion_factor || itemDetails.conversion_factor || 1
 		cartItem.rate = itemDetails.price_list_rate || itemDetails.rate
 		cartItem.price_list_rate = itemDetails.price_list_rate
+
+		// Preserve/update offer identifiers from the new item details
+		if (itemDetails.pricing_rules !== undefined) {
+			cartItem.pricing_rules = itemDetails.pricing_rules
+		}
+		if (itemDetails.applied_promotional_schemes !== undefined) {
+			cartItem.applied_promotional_schemes = itemDetails.applied_promotional_schemes
+		}
 	}
 
 	/**
@@ -1709,6 +1826,8 @@ export const usePOSCartStore = defineStore("posCart", () => {
 		subtotal,
 		totalTax,
 		totalDiscount,
+		offerDiscount,
+		manualDiscount,
 		grandTotal,
 		posProfile,
 		posOpeningShift,
