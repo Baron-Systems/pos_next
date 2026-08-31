@@ -22,7 +22,7 @@ function formatCurrency(amount) {
 function formatQuantity(quantity) {
 	if (quantity === null || quantity === undefined) return "0"
 	const num = Number.parseFloat(quantity)
-	if (isNaN(num)) return "0"
+	if (Number.isNaN(num)) return "0"
 	// Round to 4 decimal places and remove trailing zeros
 	return num.toFixed(4).replace(/\.?0+$/, '')
 }
@@ -34,7 +34,20 @@ function formatQuantity(quantity) {
  */
 function formatDateTime(datetime) {
 	if (!datetime) return ""
-	return new Date(datetime).toLocaleString()
+
+	// Normalize Frappe datetime strings ("YYYY-MM-DD HH:MM:SS.microseconds")
+	// and plain dates to something JS can parse reliably.
+	let dt = datetime
+	if (typeof dt === "string") {
+		dt = dt.trim().replace(" ", "T")
+		// Truncate more than 3 fractional digits to milliseconds
+		dt = dt.replace(/(\.\d{3})\d+/, "$1")
+	}
+
+	const parsed = new Date(dt)
+	if (Number.isNaN(parsed.getTime())) return String(datetime)
+
+	return parsed.toLocaleString()
 }
 
 /**

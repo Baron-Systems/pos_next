@@ -171,7 +171,7 @@
                   </div>
                   <div class="flex justify-between items-center text-xs text-gray-600">
                     <span>{{ invoice.customer }}</span>
-                    <span class="text-gray-500">{{ formatTime(invoice.posting_date) }}</span>
+                    <span class="text-gray-500">{{ formatDateTime(getTransactionDateTime(invoice)) }}</span>
                   </div>
                 </div>
                 <div class="bg-gray-50 p-3">
@@ -192,7 +192,7 @@
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Invoice') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Type') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Customer') }}</th>
-                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Time') }}</th>
+                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Date & Time') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Amount') }}</th>
                     </tr>
                   </thead>
@@ -213,7 +213,7 @@
                         {{ invoice.customer }}
                       </td>
                       <td class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ formatTime(invoice.posting_date) }}
+                        {{ formatDateTime(getTransactionDateTime(invoice)) }}
                       </td>
                       <td class="text-start px-6 py-4 whitespace-nowrap">
                         <span :class="['text-sm font-semibold', invoice.is_return ? 'text-red-700' : 'text-gray-900']">
@@ -284,7 +284,7 @@
                   </div>
                   <div class="flex justify-between items-center text-xs text-gray-600">
                     <span>{{ payment.customer }}</span>
-                    <span class="text-gray-500">{{ formatTime(payment.posting_date) }}</span>
+                    <span class="text-gray-500">{{ formatDateTime(getTransactionDateTime(payment)) }}</span>
                   </div>
                   <div class="mt-1 text-xs text-gray-500">
                     {{ payment.mode_of_payment }}
@@ -312,7 +312,7 @@
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Party Type') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Party Name') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Mode of Payment') }}</th>
-                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Date') }}</th>
+                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Date & Time') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Amount') }}</th>
                     </tr>
                   </thead>
@@ -338,7 +338,7 @@
                         </span>
                       </td>
                       <td class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ formatTime(payment.posting_date) }}
+                        {{ formatDateTime(getTransactionDateTime(payment)) }}
                       </td>
                       <td class="text-start px-6 py-4 whitespace-nowrap">
                         <span class="text-sm font-semibold text-green-700">
@@ -409,7 +409,7 @@
                   </div>
                   <div class="flex justify-between items-center text-xs text-gray-600">
                     <span>{{ payment.customer }}</span>
-                    <span class="text-gray-500">{{ formatTime(payment.posting_date) }}</span>
+                    <span class="text-gray-500">{{ formatDateTime(getTransactionDateTime(payment)) }}</span>
                   </div>
                   <div class="mt-1 text-xs text-gray-500">
                     {{ payment.mode_of_payment }}
@@ -437,7 +437,7 @@
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Party Type') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Party Name') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Mode of Payment') }}</th>
-                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Date') }}</th>
+                      <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Date & Time') }}</th>
                       <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Amount') }}</th>
                     </tr>
                   </thead>
@@ -463,7 +463,7 @@
                         </span>
                       </td>
                       <td class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ formatTime(payment.posting_date) }}
+                        {{ formatDateTime(getTransactionDateTime(payment)) }}
                       </td>
                       <td class="text-start px-6 py-4 whitespace-nowrap">
                         <span class="text-sm font-semibold text-amber-700">
@@ -517,7 +517,7 @@
                   <tr>
                     <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('المصروف') }}</th>
                     <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('طريقة الدفع') }}</th>
-                    <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('التاريخ') }}</th>
+                    <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('Date & Time') }}</th>
                     <th class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase">{{ __('الحساب') }}</th>
                     <th class="px-6 py-3 text-end text-xs font-medium text-gray-500 uppercase">{{ __('المبلغ') }}</th>
                   </tr>
@@ -535,7 +535,7 @@
                       </span>
                     </td>
                     <td class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {{ formatDate(expense.posting_date) }}
+                      {{ formatDateTime(getTransactionDateTime(expense)) }}
                     </td>
                     <td class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {{ expense.expense_account }}
@@ -1420,6 +1420,14 @@ function getShiftDuration() {
     return __('{0}h {1}m', [hours, minutes])
 	}
 	return __('{0}m', [minutes])
+}
+
+function getTransactionDateTime(row) {
+	if (row?.transaction_datetime) return row.transaction_datetime
+	const posting_date = row?.posting_date
+	const posting_time = row?.posting_time
+	if (posting_date && posting_time) return `${posting_date} ${posting_time}`
+	return row?.creation || posting_date || ""
 }
 
 function getPaymentIcon(method) {

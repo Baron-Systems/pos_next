@@ -430,6 +430,7 @@ def get_payments_entries(pos_opening_shift):
             "party",
             "party_type",
             "payment_type",
+            "creation",
         ],
     )
 
@@ -482,6 +483,20 @@ def _get_invoice_payment_status(invoice, tolerance=0.01):
     return "Partial Payment"
 
 
+def _get_transaction_timestamp(doc):
+    """Return a displayable datetime string for a transaction.
+
+    Prefer posting_date + posting_time when available, otherwise fall back to
+    the document creation timestamp so the closing dialog can show the real
+    date and time instead of a date-only value rendered as a fixed time.
+    """
+    posting_date = doc.get("posting_date")
+    posting_time = doc.get("posting_time")
+    if posting_date and posting_time:
+        return f"{posting_date} {posting_time}"
+    return str(doc.get("creation") or posting_date or "")
+
+
 def _process_invoice(invoice, invoice_field, company_currency, cash_mode, payments, taxes, summary):
     """Process a single invoice and update aggregates."""
     conversion_rate = invoice.get("conversion_rate")
@@ -494,6 +509,8 @@ def _process_invoice(invoice, invoice_field, company_currency, cash_mode, paymen
     transaction = frappe._dict({
         invoice_field: invoice.name,
         "posting_date": invoice.posting_date,
+        "posting_time": invoice.get("posting_time"),
+        "transaction_datetime": _get_transaction_timestamp(invoice),
         "grand_total": base_grand_total,
         "transaction_currency": invoice.get("currency") or company_currency,
         "transaction_amount": flt(invoice.get("grand_total")),
@@ -576,10 +593,12 @@ def _get_payment_method_transfers(opening_shift_name):
         fields=[
             "name",
             "posting_date",
+            "posting_time",
             "from_mode_of_payment",
             "to_mode_of_payment",
             "amount",
             "journal_entry",
+            "creation",
         ],
         order_by="posting_date desc",
     )
@@ -600,11 +619,13 @@ def _get_shift_expenses(opening_shift_name):
         fields=[
             "name",
             "posting_date",
+            "posting_time",
             "expense_name",
             "expense_account",
             "mode_of_payment",
             "amount",
             "journal_entry",
+            "creation",
         ],
         order_by="posting_date desc",
     )
@@ -746,6 +767,8 @@ def make_closing_shift_from_opening(opening_shift):
             "mode_of_payment": py.mode_of_payment,
             "paid_amount": signed_amount,
             "posting_date": py.posting_date,
+            "posting_time": py.get("posting_time"),
+            "transaction_datetime": _get_transaction_timestamp(py),
             "customer": py.party,
             "payment_type": py.payment_type,
             "party_type": py.party_type,
@@ -764,6 +787,8 @@ def make_closing_shift_from_opening(opening_shift):
             "to_mode_of_payment": tr.to_mode_of_payment,
             "amount": flt(tr.amount),
             "posting_date": tr.posting_date,
+            "posting_time": tr.get("posting_time"),
+            "transaction_datetime": _get_transaction_timestamp(tr),
             "journal_entry": tr.journal_entry,
         }))
         _aggregate_payment(payments, tr.from_mode_of_payment, -flt(tr.amount))
@@ -779,6 +804,8 @@ def make_closing_shift_from_opening(opening_shift):
             "mode_of_payment": ex.mode_of_payment,
             "amount": flt(ex.amount),
             "posting_date": ex.posting_date,
+            "posting_time": ex.get("posting_time"),
+            "transaction_datetime": _get_transaction_timestamp(ex),
             "journal_entry": ex.journal_entry,
         }))
         _aggregate_payment(payments, ex.mode_of_payment, -flt(ex.amount))
@@ -844,6 +871,7 @@ def make_closing_shift_from_opening(opening_shift):
         "sales_count": summary["sales_count"],
         "cash_sales_total": summary["cash_sales_total"],
         "pos_transactions": pos_transactions,  # Include return info for display
+        "pos_payments": pos_payments_table,  # Include display-only timestamp
         "currency_exchange_operations": currency_exchange_operations,
         "payment_method_transfers": pos_transfers_table,
         "shift_expenses": pos_expenses_table,
