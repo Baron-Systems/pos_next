@@ -707,7 +707,7 @@ def update_invoice(data):
 
         # Calculate paid_amount from payments for all POS invoices (including returns)
         if doctype == "Sales Invoice" and invoice_doc.get("payments"):
-            invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
+            invoice_doc.paid_amount = flt(sum(flt(p.amount) for p in invoice_doc.payments))
             invoice_doc.base_paid_amount = flt(
                 sum(p.base_amount or 0 for p in invoice_doc.payments)
             )

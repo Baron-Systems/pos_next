@@ -1487,7 +1487,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 			}
 			if (updates.discount_percentage !== undefined) cartItem.discount_percentage = updates.discount_percentage
 			if (updates.discount_amount !== undefined) cartItem.discount_amount = updates.discount_amount
-			if (updates.price_list_rate !== undefined) cartItem.price_list_rate = updates.price_list_rate
+			if (updates.price_list_rate !== undefined && updates.rate === undefined) cartItem.price_list_rate = updates.price_list_rate
 			if (updates.serial_no !== undefined) cartItem.serial_no = updates.serial_no
 			if (updates.valuation_rate !== undefined) cartItem.valuation_rate = updates.valuation_rate
 			if (updates.last_purchase_rate !== undefined) cartItem.last_purchase_rate = updates.last_purchase_rate
