@@ -1097,111 +1097,73 @@
 				</div>
 			</div>
 
-			<!-- Additional Discount (above payment buttons) -->
-			<div
-				v-if="items.length > 0 && settingsStore.allowAdditionalDiscount"
-				class="mb-1.5 pb-1.5 border-b border-dashed border-orange-200"
-			>
-				<div class="grid grid-cols-4 gap-1.5">
-					<div class="col-span-2 flex items-center border border-orange-300 rounded-lg bg-white overflow-hidden">
-						<button
-							type="button"
-							@click="decrementAdditionalDiscount"
-							:disabled="localAdditionalDiscount <= 0"
-							class="h-9 w-9 flex items-center justify-center text-orange-600 hover:bg-orange-50 disabled:text-gray-300 disabled:hover:bg-transparent transition-colors flex-shrink-0 touch-manipulation"
-							:aria-label="__('Decrease discount')"
-						>
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
-							</svg>
-						</button>
-						<input
-							type="number"
-							v-model.number="localAdditionalDiscount"
-							@input="handleAdditionalDiscountInput"
-							@focus="handleAdditionalDiscountFocus"
-							@blur="isAdditionalDiscountInputFocused = false"
-							:placeholder="additionalDiscountType === 'percentage' ? '0' : '0.00'"
-							:min="0"
-							:max="additionalDiscountType === 'percentage' ? 100 : Math.max(0, displaySubtotal)"
-							step="1"
-							class="flex-1 h-9 px-1 text-sm font-semibold text-center bg-transparent border-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-						/>
-						<button
-							type="button"
-							@click="incrementAdditionalDiscount"
-							class="h-9 w-9 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition-colors flex-shrink-0 touch-manipulation"
-							:aria-label="__('Increase discount')"
-						>
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-							</svg>
-						</button>
-					</div>
-					<button
-						type="button"
-						@click="setAdditionalDiscountType('percentage')"
-						:class="[
-							'h-9 rounded-lg text-sm font-bold transition-colors touch-manipulation',
-							additionalDiscountType === 'percentage'
-								? 'bg-orange-500 text-white'
-								: 'bg-white text-orange-600 border border-orange-300 hover:bg-orange-50',
-						]"
-					>
-						%
-					</button>
-					<button
-						type="button"
-						@click="setAdditionalDiscountType('amount')"
-						:class="[
-							'h-9 rounded-lg text-sm font-bold transition-colors touch-manipulation',
-							additionalDiscountType === 'amount'
-								? 'bg-orange-500 text-white'
-								: 'bg-white text-orange-600 border border-orange-300 hover:bg-orange-50',
-						]"
-					>
-						{{ currencySymbol }}
-					</button>
-				</div>
-			</div>
-
 			<!-- Action Buttons -->
 			<div class="flex flex-col gap-1.5">
-				<div class="flex gap-1.5 min-h-[40px]">
-					<!-- Quick Pay - no payment dialog -->
-					<div class="flex-1 flex gap-1 min-w-[5rem]">
+				<!-- Row 1: Pay Later + compact Additional Discount controls -->
+				<div class="flex gap-1.5 min-h-[40px] items-center">
+					<!-- Additional Discount (compact, merged into this row) -->
+					<div
+						v-if="items.length > 0 && settingsStore.allowAdditionalDiscount"
+						class="flex items-center gap-1 flex-shrink-0"
+					>
+						<div class="flex items-center border border-orange-300 rounded-lg bg-white overflow-hidden h-8">
+							<button
+								type="button"
+								@click="decrementAdditionalDiscount"
+								:disabled="localAdditionalDiscount <= 0"
+								class="h-8 w-7 flex items-center justify-center text-orange-600 hover:bg-orange-50 disabled:text-gray-300 disabled:hover:bg-transparent transition-colors flex-shrink-0 touch-manipulation"
+								:aria-label="__('Decrease discount')"
+							>
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+								</svg>
+							</button>
+							<input
+								type="number"
+								v-model.number="localAdditionalDiscount"
+								@input="handleAdditionalDiscountInput"
+								@focus="handleAdditionalDiscountFocus"
+								@blur="isAdditionalDiscountInputFocused = false"
+								:placeholder="additionalDiscountType === 'percentage' ? '0' : '0.00'"
+								:min="0"
+								:max="additionalDiscountType === 'percentage' ? 100 : Math.max(0, displaySubtotal)"
+								step="1"
+								class="w-10 h-8 px-1 text-xs font-semibold text-center bg-transparent border-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+							/>
+							<button
+								type="button"
+								@click="incrementAdditionalDiscount"
+								class="h-8 w-7 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition-colors flex-shrink-0 touch-manipulation"
+								:aria-label="__('Increase discount')"
+							>
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+								</svg>
+							</button>
+						</div>
 						<button
 							type="button"
-							@click="$emit('quick-cash-pay')"
-							:disabled="items.length === 0 || !customerIsFavorite"
+							@click="setAdditionalDiscountType('percentage')"
 							:class="[
-								'flex-1 py-2.5 px-2 rounded-lg font-bold text-xs transition-all inline-flex items-center justify-center gap-1.5 touch-manipulation overflow-visible',
-								items.length === 0 || !customerIsFavorite
-									? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-									: 'bg-green-600 hover:bg-green-700 active:bg-green-800 text-white shadow active:scale-[0.98]',
+								'h-8 w-8 rounded-lg text-xs font-bold transition-colors touch-manipulation',
+								additionalDiscountType === 'percentage'
+									? 'bg-orange-500 text-white'
+									: 'bg-white text-orange-600 border border-orange-300 hover:bg-orange-50',
 							]"
-							:title="__('Pay with selected method and complete order')"
-							:aria-label="quickPayButtonText"
 						>
-							<svg class="w-4 h-4 flex-shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-								<path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
-							</svg>
-							<span dir="ltr" class="text-white whitespace-nowrap">{{ quickPayButtonText }}</span>
+							%
 						</button>
 						<button
-							v-if="hasMultiplePaymentMethods"
 							type="button"
-							@click.stop="$emit('switch-payment-method')"
+							@click="setAdditionalDiscountType('amount')"
 							:class="[
-								'w-8 flex-shrink-0 rounded-lg font-bold text-xs transition-all inline-flex items-center justify-center touch-manipulation overflow-visible',
-								'bg-green-700 hover:bg-green-800 active:bg-green-900 text-white shadow active:scale-[0.98]',
+								'h-8 w-8 rounded-lg text-xs font-bold transition-colors touch-manipulation',
+								additionalDiscountType === 'amount'
+									? 'bg-orange-500 text-white'
+									: 'bg-white text-orange-600 border border-orange-300 hover:bg-orange-50',
 							]"
-							:title="__('Switch payment method')"
-							:aria-label="__('Switch payment method')"
 						>
-							<svg class="w-4 h-4 flex-shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-								<path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-							</svg>
+							{{ currencySymbol }}
 						</button>
 					</div>
 					<!-- Pay Later (All Debt) -->
@@ -1222,6 +1184,43 @@
 							<path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
 						</svg>
 						<span dir="ltr" class="whitespace-nowrap">{{ __("الدفع بالاجل (كلها دين)") }}</span>
+					</button>
+				</div>
+				<!-- Row 2: Switch method + Quick Pay (tall, uses freed vertical space) -->
+				<div class="flex gap-1.5 items-stretch">
+					<!-- Quick Pay - no payment dialog -->
+					<button
+						type="button"
+						@click="$emit('quick-cash-pay')"
+						:disabled="items.length === 0 || !customerIsFavorite"
+						:class="[
+							'flex-1 min-w-[5rem] py-4 min-h-[3.5rem] px-2 rounded-lg font-bold text-xs transition-all inline-flex items-center justify-center gap-1.5 touch-manipulation overflow-visible',
+							items.length === 0 || !customerIsFavorite
+								? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+								: 'bg-green-600 hover:bg-green-700 active:bg-green-800 text-white shadow active:scale-[0.98]',
+						]"
+						:title="__('Pay with selected method and complete order')"
+						:aria-label="quickPayButtonText"
+					>
+						<svg class="w-4 h-4 flex-shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+						</svg>
+						<span dir="ltr" class="text-white whitespace-nowrap">{{ quickPayButtonText }}</span>
+					</button>
+					<button
+						v-if="hasMultiplePaymentMethods"
+						type="button"
+						@click.stop="$emit('switch-payment-method')"
+						:class="[
+							'w-14 flex-shrink-0 rounded-lg font-bold text-xs transition-all inline-flex items-center justify-center touch-manipulation overflow-visible',
+							'bg-green-700 hover:bg-green-800 active:bg-green-900 text-white shadow active:scale-[0.98]',
+						]"
+						:title="__('Switch payment method')"
+						:aria-label="__('Switch payment method')"
+					>
+						<svg class="w-4 h-4 flex-shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+						</svg>
 					</button>
 				</div>
 				<div class="flex gap-1.5 min-h-[40px]">
@@ -2083,7 +2082,11 @@ function getSmartStep(quantity) {
  */
 function incrementQuantity(item) {
 	const step = getSmartStep(item.quantity);
-	const newQty = Math.round((item.quantity + step) * 10000) / 10000;
+	let newQty = Math.round((item.quantity + step) * 10000) / 10000;
+	// Quantity 0 is not allowed - skip over it (e.g. -1 -> +1)
+	if (newQty === 0) {
+		newQty = step;
+	}
 	emit("update-quantity", item.item_code, newQty, item.uom, false);
 	emit("refocus-barcode");
 }
@@ -2091,12 +2094,17 @@ function incrementQuantity(item) {
 /**
  * Decrement item quantity using smart step.
  * Allows quantity to become negative (return item).
+ * Quantity 0 is not allowed - skips over it (e.g. 1 -> -1).
  *
  * @param {Object} item - Cart item to decrement
  */
 function decrementQuantity(item) {
 	const step = getSmartStep(item.quantity);
-	const newQty = Math.round((item.quantity - step) * 10000) / 10000;
+	let newQty = Math.round((item.quantity - step) * 10000) / 10000;
+	// Quantity 0 is not allowed - skip over it (e.g. 1 -> -1)
+	if (newQty === 0) {
+		newQty = -step;
+	}
 	emit("update-quantity", item.item_code, newQty, item.uom, false);
 	emit("refocus-barcode");
 }
