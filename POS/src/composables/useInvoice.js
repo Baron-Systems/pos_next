@@ -824,8 +824,9 @@ export function useInvoice() {
 			items: formatItemsForSubmission(rawItems),
 			payments: rawPayments.map((p) => ({
 				mode_of_payment: p.mode_of_payment,
-				amount: p.amount,
-				base_amount: p.amount, // Required by ERPNext for accounting entries
+				// Return invoices require negative payment amounts (money returned to customer)
+				amount: hasNegativeQty ? -Math.abs(p.amount) : p.amount,
+				base_amount: hasNegativeQty ? -Math.abs(p.amount) : p.amount, // Required by ERPNext for accounting entries
 				type: p.type,
 			})),
 			discount_amount: additionalDiscount.value || 0,
@@ -883,8 +884,9 @@ export function useInvoice() {
 					items: formatItemsForSubmission(rawItems),
 					payments: rawPayments.map((p) => ({
 						mode_of_payment: p.mode_of_payment,
-						amount: p.amount,
-						base_amount: p.amount,
+						// Return invoices require negative payment amounts (money returned to customer)
+						amount: hasNegativeQty ? -Math.abs(p.amount) : p.amount,
+						base_amount: hasNegativeQty ? -Math.abs(p.amount) : p.amount,
 						type: p.type,
 					})),
 					discount_amount: additionalDiscount.value || 0,

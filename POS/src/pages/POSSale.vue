@@ -2262,13 +2262,20 @@ async function handlePaymentCompleted(paymentData, options = {}) {
 			// This ensures rate, discount_percentage, discount_amount, and pricing_rules
 			// are all correctly formatted for ERPNext
 			const preparedItems = cartStore.formatItemsForSubmission(cartStore.invoiceItems);
+			const hasNegativeQty = preparedItems.some((item) => (item.qty || 0) < 0);
 
 			const invoiceData = {
 				pos_profile: cartStore.posProfile,
 				posa_pos_opening_shift: cartStore.posOpeningShift,
 				customer: customerValue || shiftStore.profileCustomer,
 				items: preparedItems,
-				payments: JSON.parse(JSON.stringify(cartStore.payments)),
+				// Return invoices require negative payment amounts (money returned to customer)
+				payments: JSON.parse(JSON.stringify(cartStore.payments)).map((p) => ({
+					...p,
+					amount: hasNegativeQty ? -Math.abs(p.amount) : p.amount,
+					base_amount: hasNegativeQty ? -Math.abs(p.amount) : p.amount,
+				})),
+				is_return: hasNegativeQty ? 1 : 0,
 				sales_team: JSON.parse(JSON.stringify(cartStore.salesTeam || [])),
 				grand_total: cartStore.grandTotal,
 				total_tax: cartStore.totalTax,
