@@ -27,6 +27,12 @@
   "allow_write_off_change",
   "allow_partial_payment",
   "enable_sales_persons",
+  "section_break_payment_discount",
+  "enable_customer_payment_discount",
+  "customer_discount_account",
+  "column_break_payment_discount",
+  "enable_supplier_payment_discount",
+  "supplier_discount_account",
   "section_break_display",
   "default_card_view",
   "display_item_code",
@@ -233,6 +239,46 @@
    "fieldtype": "Select",
    "label": "Sales Persons Selection",
    "options": "Disabled\nSingle\nMultiple"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_payment_discount",
+   "fieldtype": "Section Break",
+   "label": "Payment Discounts"
+  },
+  {
+   "default": "0",
+   "description": "Show cash discount field in the customer payment dialog",
+   "fieldname": "enable_customer_payment_discount",
+   "fieldtype": "Check",
+   "label": "Enable Customer Payment Discount"
+  },
+  {
+   "depends_on": "enable_customer_payment_discount",
+   "description": "Expense account for discounts given to customers (e.g. Discount Allowed)",
+   "fieldname": "customer_discount_account",
+   "fieldtype": "Link",
+   "label": "Customer Discount Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "column_break_payment_discount",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Show cash discount field in the supplier payment dialog",
+   "fieldname": "enable_supplier_payment_discount",
+   "fieldtype": "Check",
+   "label": "Enable Supplier Payment Discount"
+  },
+  {
+   "depends_on": "enable_supplier_payment_discount",
+   "description": "Income account for discounts received from suppliers (e.g. Discount Received)",
+   "fieldname": "supplier_discount_account",
+   "fieldtype": "Link",
+   "label": "Supplier Discount Account",
+   "options": "Account"
   },
   {
    "collapsible": 1,

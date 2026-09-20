@@ -1219,7 +1219,7 @@
 						:aria-label="__('Switch payment method')"
 					>
 						<svg class="w-4 h-4 flex-shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+							<path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
 						</svg>
 					</button>
 				</div>
@@ -1236,7 +1236,8 @@
 								:max="grandTotal"
 								step="0.01"
 								class="w-full h-10 px-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-								:disabled="items.length === 0"
+								:disabled="items.length === 0 || props.customerIsFavorite"
+								:title="props.customerIsFavorite ? __('Partial payment is not allowed for favorite customers.') : ''"
 							/>
 							<div v-if="partialPaymentAmount && Number(partialPaymentAmount) > 0" class="absolute bottom-full left-0 mb-1 bg-gray-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap">
 								{{ __("المتبقي: {0}", [formatCurrency(grandTotal - Number(partialPaymentAmount))]) }}
@@ -1246,17 +1247,18 @@
 						<button
 							type="button"
 							@click="handlePartialPayment"
-							:disabled="items.length === 0 || !partialPaymentAmount || Number(partialPaymentAmount) <= 0 || Number(partialPaymentAmount) >= grandTotal"
+							:disabled="isPartialPaymentDisabled"
 							:class="[
 								'px-3 py-2.5 rounded-lg font-bold text-xs transition-all inline-flex items-center justify-center gap-1.5 touch-manipulation overflow-visible',
-								items.length === 0 || !partialPaymentAmount || Number(partialPaymentAmount) <= 0 || Number(partialPaymentAmount) >= grandTotal
+								isPartialPaymentDisabled
 									? 'bg-gray-300 text-gray-500 cursor-not-allowed'
 									: 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-lg hover:shadow-xl active:scale-[0.98]',
 							]"
 							:aria-label="__('Partial Payment')"
+							:title="props.customerIsFavorite ? __('Partial payment is not allowed for favorite customers.') : ''"
 						>
 							<svg class="w-4 h-4 flex-shrink-0 text-inherit" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-								<path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+								<path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
 							</svg>
 							<span dir="ltr" class="whitespace-nowrap text-inherit">السداد الجزئي</span>
 						</button>
@@ -1359,7 +1361,6 @@ import { useCustomerSearchStore } from "@/stores/customerSearch";
 import { useBootstrapStore } from "@/stores/bootstrap";
 import { usePOSDraftsStore } from "@/stores/posDrafts";
 import { formatCurrency as formatCurrencyUtil, getCurrencySymbol } from "@/utils/currency";
-import { roundPosAmount } from "@/utils/invoice";
 import { useFormatters } from "@/composables/useFormatters";
 import { isOffline } from "@/utils/offline";
 import { offlineWorker } from "@/utils/offline/workerClient";
@@ -1509,6 +1510,7 @@ const selectedIndex = ref(-1); // Keyboard navigation index for search results
 const customerResultsContainer = ref(null);
 const customerItemRefs = ref(new Map());
 
+
 function setCustomerItemRef(el, customerName) {
 	if (el) customerItemRefs.value.set(customerName, el);
 	else customerItemRefs.value.delete(customerName);
@@ -1550,6 +1552,17 @@ function round2(val) {
 
 // Partial payment state
 const partialPaymentAmount = ref("");
+
+// Disable partial payment for favorite/heart customers
+const isPartialPaymentDisabled = computed(() => {
+	return (
+		props.items.length === 0 ||
+		props.customerIsFavorite ||
+		!partialPaymentAmount.value ||
+		Number(partialPaymentAmount.value) <= 0 ||
+		Number(partialPaymentAmount.value) >= props.grandTotal
+	);
+});
 
 // Payment methods from bootstrap
 const paymentMethods = computed(() => bootstrapStore.getPreloadedPaymentMethods() || []);
@@ -1796,15 +1809,10 @@ const displayGrandTotal = computed(() => {
 	if (props.items.length === 0 && props.lastInvoiceTotal > 0) {
 		return props.lastInvoiceTotal;
 	}
-	// Always: displaySubtotal + tax - offerDiscount - discountAmount
-	// This makes the display consistent and intuitive
-	const rawTotal = displaySubtotal.value + props.taxAmount - props.offerDiscount - props.discountAmount;
-	// Apply POS rounding (0.5-step) when rounding is enabled in settings
-	// so the cart displays the same total the invoice will have after creation
-	if (settingsStore.disableRoundedTotal) {
-		return rawTotal;
-	}
-	return roundPosAmount(rawTotal);
+	// Show the authoritative grand total from the cart store.
+	// It already has POS rounding (nearest 0.5) applied when rounding is
+	// enabled, so the displayed total always matches the invoice total.
+	return props.grandTotal;
 });
 
 /**
@@ -1963,6 +1971,9 @@ function getInitials(name) {
  * Handle partial payment - emits the amount directly without opening dialog
  */
 function handlePartialPayment() {
+	if (props.customerIsFavorite) {
+		return;
+	}
 	const amount = Number(partialPaymentAmount.value) || 0;
 	if (amount <= 0) {
 		return;

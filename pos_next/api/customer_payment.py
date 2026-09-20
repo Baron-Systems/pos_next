@@ -5,7 +5,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils import flt, nowdate
+from frappe.utils import cint, flt, nowdate
 from erpnext.accounts.utils import get_outstanding_invoices as erpnext_get_outstanding_invoices
 from erpnext.accounts.doctype.payment_entry.payment_entry import get_outstanding_reference_documents
 
@@ -176,8 +176,27 @@ def get_recent_payments(customer, company=None, limit=10):
     return payments
 
 
+def _get_payment_discount_settings(pos_opening_shift, account_field):
+    """Return (enabled, discount_account) from POS Settings via the opening shift's POS Profile."""
+    if not pos_opening_shift:
+        return 0, None
+    pos_profile = frappe.db.get_value("POS Opening Shift", pos_opening_shift, "pos_profile")
+    if not pos_profile:
+        return 0, None
+    enabled_field = (
+        "enable_customer_payment_discount"
+        if account_field == "customer_discount_account"
+        else "enable_supplier_payment_discount"
+    )
+    settings = frappe.db.get_value(
+        "POS Settings", {"pos_profile": pos_profile},
+        [enabled_field, account_field], as_dict=True,
+    ) or {}
+    return cint(settings.get(enabled_field)), settings.get(account_field)
+
+
 @frappe.whitelist()
-def create_customer_payment(customer, company, amount, mode_of_payment="Cash", payment_type="Receive", pos_opening_shift=None):
+def create_customer_payment(customer, company, amount, mode_of_payment="Cash", payment_type="Receive", pos_opening_shift=None, discount_amount=0, note=None):
     if not customer:
         frappe.throw(_("Customer is required"))
     if not company:
@@ -186,6 +205,17 @@ def create_customer_payment(customer, company, amount, mode_of_payment="Cash", p
     amount = flt(amount)
     if amount <= 0:
         frappe.throw(_("Payment amount must be greater than zero"))
+
+    discount_amount = flt(discount_amount)
+    discount_account = None
+    if discount_amount > 0:
+        enabled, discount_account = _get_payment_discount_settings(
+            pos_opening_shift, "customer_discount_account"
+        )
+        if not enabled:
+            frappe.throw(_("Payment discount is not enabled in POS Settings"))
+        if not discount_account:
+            frappe.throw(_("Customer Discount Account is not set in POS Settings"))
 
     # Try to find mode of payment - support both English and Arabic names
     if not frappe.db.exists("Mode of Payment", mode_of_payment):
@@ -234,7 +264,7 @@ def create_customer_payment(customer, company, amount, mode_of_payment="Cash", p
         pe.paid_to = account_info.get("account")
         pe.paid_amount = amount
         pe.received_amount = amount
-        pe.remarks = _("Payment from POS - {0}").format(mode_of_payment)
+        pe.remarks = note or _("Payment from POS - {0}").format(mode_of_payment)
 
         outstanding_invoices = frappe.get_all("Sales Invoice",
             filters={"customer": customer, "company": company, "docstatus": 1, "outstanding_amount": [">", 0]},
@@ -243,7 +273,9 @@ def create_customer_payment(customer, company, amount, mode_of_payment="Cash", p
 
         allocated = []
         if outstanding_invoices:
-            remaining = amount
+            # Cash received + discount settles the invoices; the discount
+            # is booked via the deductions table below
+            remaining = amount + discount_amount
             for inv in outstanding_invoices:
                 if remaining <= 0.005:
                     break
@@ -265,7 +297,7 @@ def create_customer_payment(customer, company, amount, mode_of_payment="Cash", p
         pe.paid_to = company_doc.default_receivable_account
         pe.paid_amount = amount
         pe.received_amount = amount
-        pe.remarks = _("Payment to Customer from POS - {0}").format(mode_of_payment)
+        pe.remarks = note or _("Payment to Customer from POS - {0}").format(mode_of_payment)
         allocated = []
 
     # Validate outstanding amounts are still current before inserting
@@ -322,6 +354,21 @@ def create_customer_payment(customer, company, amount, mode_of_payment="Cash", p
 
             for ref in refs_to_remove:
                 pe.references.remove(ref)
+
+    # Book the cash discount through the deductions table so the
+    # difference_amount is closed against the discount account
+    if discount_amount > 0 and payment_type == "Receive":
+        total_allocated = sum(flt(ref.allocated_amount) for ref in pe.get("references", []))
+        applied_discount = min(discount_amount, max(0, total_allocated - amount))
+        if applied_discount > 0:
+            pe.append("deductions", {
+                "account": discount_account,
+                "cost_center": pe.cost_center or company_doc.cost_center,
+                "amount": applied_discount,
+            })
+
+    if note:
+        pe.custom_remarks = 1
 
     pe.flags.ignore_permissions = True
     pe.insert()

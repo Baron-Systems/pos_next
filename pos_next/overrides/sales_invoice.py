@@ -7,6 +7,8 @@ Handles wallet payments that require party information for Receivable accounts.
 
 """
 
+import math
+
 import frappe
 from frappe.utils import cint, flt
 from erpnext.accounts.doctype.sales_invoice.sales_invoice import SalesInvoice
@@ -15,26 +17,15 @@ from erpnext.accounts.utils import get_account_currency
 
 def _round_pos_amount(amount, precision=2):
 	"""
-	Custom POS rounding to the nearest 0.5 using thresholds:
-	- fractional part >= 0.80  -> round up to next whole number
-	- fractional part >= 0.40  -> round to .5
-	- fractional part <  0.40  -> round down to whole number
+	Standard rounding to the nearest 0.5 (round half up).
+	Examples: 18.24 -> 18.0, 18.25 -> 18.5, 18.74 -> 18.5, 18.75 -> 19.0
 	"""
 	amount = flt(amount)
 	if not amount:
 		return flt(0.0, precision)
 
 	sign = 1 if amount >= 0 else -1
-	abs_value = abs(amount)
-	integer_part = int(abs_value)
-	fractional = abs_value - integer_part
-
-	if fractional >= 0.80:
-		rounded = integer_part + 1
-	elif fractional >= 0.40:
-		rounded = integer_part + 0.5
-	else:
-		rounded = integer_part
+	rounded = math.floor(abs(amount) * 2 + 0.5) / 2
 
 	return flt(sign * rounded, precision)
 
@@ -71,10 +62,32 @@ class CustomSalesInvoice(SalesInvoice):
 			rounding_adjustment * self.conversion_rate, self.precision("base_rounding_adjustment")
 		)
 
-		# Outstanding should be calculated against the rounded total
+		# Recalculate change against the POS-rounded total.
+		# ERPNext computed change_amount inside super() using its own rounded_total
+		# (which may differ, e.g. currency fraction rounding), so it must be fixed here.
+		if (
+			self.get("paid_amount")
+			and not self.get("is_return")
+			and any(d.type == "Cash" for d in self.get("payments", []))
+		):
+			self.change_amount = flt(
+				max(0, flt(self.paid_amount) - rounded_total),
+				self.precision("change_amount"),
+			)
+			self.base_change_amount = flt(
+				self.change_amount * self.conversion_rate,
+				self.precision("base_change_amount"),
+			)
+		else:
+			self.change_amount = 0.0
+			self.base_change_amount = 0.0
+
+		# Outstanding should be calculated against the rounded total,
+		# adding back the change returned to the customer
 		if self.get("paid_amount"):
 			self.outstanding_amount = flt(
-				rounded_total - self.paid_amount, self.precision("outstanding_amount")
+				rounded_total - self.paid_amount + flt(self.change_amount),
+				self.precision("outstanding_amount"),
 			)
 		else:
 			self.outstanding_amount = rounded_total
@@ -149,6 +162,36 @@ class CustomSalesInvoice(SalesInvoice):
 
 			if not skip_change_gl_entries:
 				gl_entries.extend(self.get_gle_for_change_amount())
+
+	def validate_selling_price(self):
+		"""
+		Skip ERPNext's selling-price vs purchase/valuation-rate validation
+		for POS invoices only when a discount has been applied.
+
+		A discount can be:
+		- A line-level fixed or percentage discount on any item.
+		- An invoice-level additional discount (fixed or percentage).
+
+		In those cases the cashier may push the net rate below the last
+		purchase rate or valuation rate, so we allow the sale.
+		"""
+		if not cint(self.is_pos):
+			return super().validate_selling_price()
+
+		has_discount = bool(
+			flt(self.additional_discount_percentage)
+			or flt(self.discount_amount)
+			or any(
+				flt(item.discount_percentage) or flt(item.discount_amount)
+				for item in self.get("items", [])
+			)
+		)
+
+		if has_discount:
+			# POS invoice has a discount: bypass selling-price vs cost validation.
+			return
+
+		return super().validate_selling_price()
 
 	def get_party_and_party_type_for_pos_gl_entry(self, mode_of_payment, account):
 		"""

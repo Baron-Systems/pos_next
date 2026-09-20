@@ -172,6 +172,10 @@ def get_pos_settings(pos_profile):
 				"allow_select_sales_order",
 				"create_only_sales_order",
 				"enable_currency_exchange",
+				"enable_customer_payment_discount",
+				"enable_supplier_payment_discount",
+				"customer_discount_account",
+				"supplier_discount_account",
 			],
 			as_dict=True
 		)
@@ -244,6 +248,10 @@ def get_default_pos_settings():
 		"create_only_sales_order": 0,
 		"enable_currency_exchange": 0,
 		"currency_setup": [],
+		"enable_customer_payment_discount": 0,
+		"enable_supplier_payment_discount": 0,
+		"customer_discount_account": "",
+		"supplier_discount_account": "",
 	}
 
 

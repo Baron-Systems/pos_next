@@ -31,6 +31,7 @@ export function useInvoice() {
 	const couponCode = ref(null)
 	const taxRules = ref([]) // Tax rules from POS Profile
 	const taxInclusive = ref(false) // Tax inclusive setting from POS Settings
+	const invoiceNote = ref("") // Note saved on the invoice (remarks field)
 
 	/**
 	 * Determine if an item has an active offer/pricing rule.
@@ -835,6 +836,7 @@ export function useInvoice() {
 			update_stock: 1,
 			is_return: hasNegativeQty ? 1 : 0,
 			price_list: priceListStore.activePriceList,
+			remarks: invoiceNote.value || "",
 		}
 
 		if (targetDoctype === "Sales Order") {
@@ -895,6 +897,7 @@ export function useInvoice() {
 					update_stock: 1, // Critical: Ensures stock is updated
 					is_return: hasNegativeQty ? 1 : 0,
 					price_list: priceListStore.activePriceList,
+					remarks: invoiceNote.value || "",
 				}
 
 				if (targetDoctype === "Sales Order" && deliveryDate) {
@@ -1066,6 +1069,7 @@ export function useInvoice() {
 		payments.value = []
 		additionalDiscount.value = 0
 		couponCode.value = null
+		invoiceNote.value = ""
 
 		// Reset incremental cache
 		_cachedSubtotal.value = 0
@@ -1093,6 +1097,7 @@ export function useInvoice() {
 		payments.value = []
 		additionalDiscount.value = 0
 		couponCode.value = null
+		invoiceNote.value = ""
 
 		// Reset incremental cache
 		_cachedSubtotal.value = 0
@@ -1197,6 +1202,7 @@ export function useInvoice() {
 		couponCode,
 		taxRules,
 		taxInclusive,
+		invoiceNote,
 		isSubmitting,
 
 		// Computed

@@ -67,6 +67,11 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		// Currency Exchange
 		enable_currency_exchange: 0,
 		currency_setup: [],
+		// Payment Discounts
+		enable_customer_payment_discount: 0,
+		enable_supplier_payment_discount: 0,
+		customer_discount_account: "",
+		supplier_discount_account: "",
 	})
 
 	const isLoading = ref(false)
@@ -115,6 +120,20 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	)
 	const allowPartialPayment = computed(() =>
 		Boolean(settings.value.allow_partial_payment),
+	)
+
+	// Computed - Payment Discounts
+	const enableCustomerPaymentDiscount = computed(() =>
+		Boolean(settings.value.enable_customer_payment_discount),
+	)
+	const enableSupplierPaymentDiscount = computed(() =>
+		Boolean(settings.value.enable_supplier_payment_discount),
+	)
+	const customerDiscountAccount = computed(() =>
+		settings.value.customer_discount_account || "",
+	)
+	const supplierDiscountAccount = computed(() =>
+		settings.value.supplier_discount_account || "",
 	)
 
 	// Computed - Display Settings
@@ -444,6 +463,12 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		allowReturn,
 		allowWriteOffChange,
 		allowPartialPayment,
+
+		// Computed - Payment Discounts
+		enableCustomerPaymentDiscount,
+		enableSupplierPaymentDiscount,
+		customerDiscountAccount,
+		supplierDiscountAccount,
 
 		// Computed - Display Settings
 		defaultCardView,

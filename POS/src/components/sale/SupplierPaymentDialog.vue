@@ -41,6 +41,18 @@ step="0.01"
 @keyup.enter="executePayment"
 />
 </div>
+<div v-if="settingsStore.enableSupplierPaymentDiscount" class="w-32">
+<label class="block text-xs font-medium text-gray-600 mb-1">{{ __('خصم نقدي') }}</label>
+<Input
+v-model.number="discountAmount"
+type="number"
+:placeholder="__('0.00')"
+step="0.01"
+min="0"
+@input="(val) => discountAmount = Number(val)"
+@keyup.enter="executePayment"
+/>
+</div>
 <Button
 @click="executePayment"
 :loading="paying"
@@ -50,6 +62,15 @@ variant="solid"
 >
 {{ paymentAmount < 0 ? __('القبض من المورد') : __('الدفع للمورد') }}
 </Button>
+</div>
+<div class="mt-3">
+<label class="block text-xs font-medium text-gray-600 mb-1">{{ __('ملاحظة') }}</label>
+<Input
+v-model="paymentNote"
+type="text"
+:placeholder="__('ملاحظة على الدفعة (اختياري)')"
+@keyup.enter="executePayment"
+/>
 </div>
 </div>
 <div v-if='localSupplier' class='bg-white border border-gray-200 rounded-xl p-4'>
@@ -123,6 +144,7 @@ variant="solid"
 
 <script setup>
 import SupplierSection from "@/components/sale/SupplierSection.vue"
+import { usePOSSettingsStore } from "@/stores/posSettings"
 import { call } from "@/utils/apiWrapper"
 import { formatCurrency as formatCurrencyUtil } from "@/utils/currency"
 import { useToast } from "@/composables/useToast"
@@ -147,6 +169,7 @@ const emit = defineEmits([
 ])
 
 const { showSuccess, showError } = useToast()
+const settingsStore = usePOSSettingsStore()
 
 const show = computed({
 get: () => props.modelValue,
@@ -161,6 +184,8 @@ set: (val) => emit("select-supplier", val),
 const loading = ref(false)
 const paying = ref(false)
 const paymentAmount = ref(null)
+const discountAmount = ref(null)
+const paymentNote = ref("")
 const summary = ref({ outstanding_balance: 0, currency: "" })
 const statement = ref([])
 const showLastMonth = ref(false)
@@ -234,9 +259,13 @@ amount: Math.abs(paymentAmount.value),
 mode_of_payment: props.modeOfPayment,
 payment_type: paymentAmount.value < 0 ? "Receive" : "Pay",
 pos_opening_shift: props.openingShift || undefined,
+discount_amount: paymentAmount.value > 0 ? Math.abs(discountAmount.value || 0) : 0,
+note: paymentNote.value || undefined,
 })
 showSuccess(__("تم إنشاء الدفع {0} بنجاح", [result.payment_entry]))
 paymentAmount.value = null
+discountAmount.value = null
+paymentNote.value = ""
 await loadData()
 emit("payment-created", result)
 } catch (e) {
@@ -347,6 +376,8 @@ w.print()
 watch(show, (val) => {
 if (val) {
 paymentAmount.value = null
+discountAmount.value = null
+paymentNote.value = ""
 if (props.supplier) loadData()
 }
 })

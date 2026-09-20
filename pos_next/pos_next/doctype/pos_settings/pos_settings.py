@@ -66,6 +66,10 @@ class POSSettings(Document):
 		wallet_account: DF.Link | None
 		enable_currency_exchange: DF.Check
 		currency_setup: DF.Table
+		enable_customer_payment_discount: DF.Check
+		enable_supplier_payment_discount: DF.Check
+		customer_discount_account: DF.Link | None
+		supplier_discount_account: DF.Link | None
 	# end: auto-generated types
 
 	def validate(self):

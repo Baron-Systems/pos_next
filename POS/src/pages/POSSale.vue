@@ -2277,6 +2277,7 @@ async function handlePaymentCompleted(paymentData, options = {}) {
 				})),
 				is_return: hasNegativeQty ? 1 : 0,
 				sales_team: JSON.parse(JSON.stringify(cartStore.salesTeam || [])),
+				remarks: cartStore.draftNote || "",
 				grand_total: cartStore.grandTotal,
 				total_tax: cartStore.totalTax,
 				total_discount: cartStore.totalDiscount,
@@ -2313,7 +2314,7 @@ async function handlePaymentCompleted(paymentData, options = {}) {
 
 			if (result) {
 				const invoiceName = result.name || result.message?.name || __("Unknown");
-				const invoiceTotal = result.grand_total || result.total || 0;
+				const invoiceTotal = result.rounded_total || result.grand_total || result.total || 0;
 				const paidAmount = paymentData.paid_amount || invoiceTotal;
 
 				await cartStore.clearCart();

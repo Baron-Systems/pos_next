@@ -96,6 +96,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 		salesTeam,
 		additionalDiscount,
 		taxInclusive,
+		invoiceNote,
 		isSubmitting,
 		addItem: addItemToInvoice,
 		removeItem,
@@ -276,6 +277,10 @@ export const usePOSCartStore = defineStore("posCart", () => {
 			showWarning(__("Please select a customer"))
 			return
 		}
+
+		// Sync the cart note so it is saved on the invoice (remarks) for
+		// all flows: paid, partial payment, credit sale, and hold
+		invoiceNote.value = draftNote.value || ""
 
 		return await baseSubmitInvoice(targetDoctype.value, deliveryDate.value)
 	}

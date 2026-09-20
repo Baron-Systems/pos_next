@@ -503,7 +503,7 @@ def update_invoice(data):
         if doctype == "Sales Invoice" and invoice_doc.get('payments'):
             invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
             invoice_doc.base_paid_amount = flt(sum(p.base_amount or 0 for p in invoice_doc.payments))
-            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
+            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount) + flt(invoice_doc.change_amount)
 
         pos_profile_doc = None
         if pos_profile:
@@ -561,7 +561,7 @@ def update_invoice(data):
         if doctype == "Sales Invoice" and invoice_doc.get('payments'):
             invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
             invoice_doc.base_paid_amount = flt(sum(p.base_amount or 0 for p in invoice_doc.payments))
-            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
+            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount) + flt(invoice_doc.change_amount)
 
         # Validate return items if this is a return invoice
         if (data.get("is_return") or invoice_doc.get("is_return")) and invoice_doc.get(
@@ -711,7 +711,7 @@ def update_invoice(data):
             invoice_doc.base_paid_amount = flt(
                 sum(p.base_amount or 0 for p in invoice_doc.payments)
             )
-            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
+            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount) + flt(invoice_doc.change_amount)
 
         # Validate and track POS Coupon if coupon_code is provided
         coupon_code = data.get("coupon_code")
@@ -774,7 +774,7 @@ def update_invoice(data):
             if invoice_doc.get('payments'):
                 invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
                 invoice_doc.base_paid_amount = flt(sum(p.base_amount or 0 for p in invoice_doc.payments))
-            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
+            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount) + flt(invoice_doc.change_amount)
 
         return invoice_doc.as_dict()
     except Exception as e:
@@ -1123,7 +1123,7 @@ def submit_invoice(invoice=None, data=None):
         if doctype == "Sales Invoice" and invoice_doc.get('payments'):
             invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
             invoice_doc.base_paid_amount = flt(sum(p.base_amount or 0 for p in invoice_doc.payments))
-            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
+            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount) + flt(invoice_doc.change_amount)
 
         # Ensure update_stock is set for Sales Invoice
         if doctype == "Sales Invoice":
@@ -1168,7 +1168,7 @@ def submit_invoice(invoice=None, data=None):
             invoice_doc.base_paid_amount = flt(
                 sum(p.base_amount or 0 for p in invoice_doc.payments)
             )
-            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount)
+            invoice_doc.outstanding_amount = flt(invoice_doc.rounded_total or invoice_doc.grand_total) - flt(invoice_doc.paid_amount) + flt(invoice_doc.change_amount)
 
         # Handle sales team (multiple sales persons)
         sales_team_data = invoice.get("sales_team") or data.get("sales_team")
@@ -1305,6 +1305,7 @@ def submit_invoice(invoice=None, data=None):
             "name": invoice_doc.name,
             "status": invoice_doc.docstatus,
             "grand_total": invoice_doc.grand_total,
+            "rounded_total": getattr(invoice_doc, "rounded_total", 0) or invoice_doc.grand_total,
             "total": invoice_doc.total,
             "net_total": invoice_doc.net_total,
             "outstanding_amount": getattr(invoice_doc, "outstanding_amount", 0),
@@ -1357,7 +1358,33 @@ def get_invoice(invoice_name):
 	# Get invoice document
 	invoice = frappe.get_doc("Sales Invoice", invoice_name)
 
-	return invoice.as_dict()
+	# Include customer's WhatsApp/mobile number for the UI share button
+	customer_mobile = ""
+	if invoice.customer:
+		customer_mobile = frappe.db.get_value(
+			"Customer", invoice.customer, "mobile_no"
+		) or ""
+
+		# Fallback to primary contact or any linked contact
+		if not customer_mobile:
+			contact = frappe.db.sql(
+				"""
+				SELECT c.mobile_no, c.phone
+				FROM `tabContact` c
+				INNER JOIN `tabDynamic Link` dl ON dl.parent = c.name AND dl.parenttype = 'Contact'
+				WHERE dl.link_doctype = 'Customer' AND dl.link_name = %s
+				ORDER BY c.is_primary_contact DESC, c.creation DESC
+				LIMIT 1
+				""",
+				invoice.customer,
+				as_dict=True,
+			)
+			if contact:
+				customer_mobile = contact[0].mobile_no or contact[0].phone or ""
+
+	invoice_dict = invoice.as_dict()
+	invoice_dict["customer_mobile_no"] = customer_mobile
+	return invoice_dict
 
 
 @frappe.whitelist()

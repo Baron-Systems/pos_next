@@ -5,7 +5,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils import flt, nowdate
+from frappe.utils import cint, flt, nowdate
 
 
 @frappe.whitelist()
@@ -112,7 +112,7 @@ def get_supplier_gl_balance(supplier, company=None):
 
 
 @frappe.whitelist()
-def create_supplier_payment(supplier, company, amount, mode_of_payment="Cash", payment_type="Pay", pos_opening_shift=None):
+def create_supplier_payment(supplier, company, amount, mode_of_payment="Cash", payment_type="Pay", pos_opening_shift=None, discount_amount=0, note=None):
     """Create a Payment Entry for a supplier."""
     if not supplier:
         frappe.throw(_("Supplier is required"))
@@ -122,6 +122,20 @@ def create_supplier_payment(supplier, company, amount, mode_of_payment="Cash", p
     amount = flt(amount)
     if amount <= 0:
         frappe.throw(_("Amount must be greater than zero"))
+
+    discount_amount = flt(discount_amount)
+    discount_account = None
+    if discount_amount > 0:
+        pos_profile = frappe.db.get_value("POS Opening Shift", pos_opening_shift, "pos_profile") if pos_opening_shift else None
+        settings = frappe.db.get_value(
+            "POS Settings", {"pos_profile": pos_profile},
+            ["enable_supplier_payment_discount", "supplier_discount_account"], as_dict=True,
+        ) or {}
+        if not cint(settings.get("enable_supplier_payment_discount")):
+            frappe.throw(_("Payment discount is not enabled in POS Settings"))
+        discount_account = settings.get("supplier_discount_account")
+        if not discount_account:
+            frappe.throw(_("Supplier Discount Account is not set in POS Settings"))
 
     # Get payable account
     payable_account = frappe.db.get_value("Company", company, "default_payable_account")
@@ -151,7 +165,47 @@ def create_supplier_payment(supplier, company, amount, mode_of_payment="Cash", p
         "reference_no": pos_opening_shift or f"POS-SUP-{frappe.generate_hash(length=8)}",
         "reference_date": nowdate(),
         "pos_opening_shift": pos_opening_shift,
+        "remarks": note or _("Payment to Supplier from POS - {0}").format(mode_of_payment),
     })
+
+    # Allocate against outstanding purchase invoices so a cash discount
+    # can be booked correctly through the deductions table
+    if payment_type == "Pay":
+        outstanding_invoices = frappe.get_all("Purchase Invoice",
+            filters={"supplier": supplier, "company": company, "docstatus": 1, "outstanding_amount": [">", 0]},
+            fields=["name", "outstanding_amount", "grand_total", "posting_date"],
+            order_by="posting_date asc")
+
+        remaining = amount + discount_amount
+        for inv in outstanding_invoices:
+            if remaining <= 0.005:
+                break
+            alloc = min(remaining, flt(inv.outstanding_amount))
+            if alloc <= 0:
+                continue
+            pe.append("references", {
+                "reference_doctype": "Purchase Invoice",
+                "reference_name": inv.name,
+                "total_amount": inv.grand_total,
+                "outstanding_amount": inv.outstanding_amount,
+                "allocated_amount": alloc,
+            })
+            remaining -= alloc
+
+        # Discount received from supplier is income: negative deduction
+        # closes the difference_amount against the discount account
+        if discount_amount > 0:
+            total_allocated = sum(flt(ref.allocated_amount) for ref in pe.get("references", []))
+            applied_discount = min(discount_amount, max(0, total_allocated - amount))
+            if applied_discount > 0:
+                pe.append("deductions", {
+                    "account": discount_account,
+                    "cost_center": pe.cost_center or frappe.db.get_value("Company", company, "cost_center"),
+                    "amount": -applied_discount,
+                })
+
+    if note:
+        pe.custom_remarks = 1
 
     pe.insert(ignore_permissions=True)
     pe.submit()

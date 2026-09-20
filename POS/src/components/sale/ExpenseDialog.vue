@@ -2,16 +2,16 @@
 	<Dialog
 		:modelValue="modelValue"
 		@update:modelValue="$emit('update:modelValue', $event)"
-		:options="{ title: __('تسجيل مصروف الوردية'), size: 'sm' }"
+		:options="{ title: __('تسجيل مصروف الوردية'), size: '3xl' }"
 	>
 		<template #body-content>
-			<div class="flex flex-col gap-4 py-2">
+			<div class="flex flex-col gap-5 py-2 min-h-[50vh]">
 				<!-- Payment Method -->
 				<div class="flex flex-col gap-1">
-					<label class="text-sm font-medium text-gray-700">{{ __('طريقة الدفع') }}</label>
+					<label class="text-base font-medium text-gray-700">{{ __('طريقة الدفع') }}</label>
 					<select
 						v-model="modeOfPayment"
-						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+						class="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
 					>
 						<option value="" disabled>{{ __('اختر طريقة الدفع') }}</option>
 						<option v-for="method in paymentMethods" :key="method.mode_of_payment" :value="method.mode_of_payment">
@@ -22,10 +22,10 @@
 
 				<!-- Expense Name -->
 				<div class="flex flex-col gap-1">
-					<label class="text-sm font-medium text-gray-700">{{ __('اسم المصروف') }}</label>
+					<label class="text-base font-medium text-gray-700">{{ __('اسم المصروف') }}</label>
 					<select
 						v-model="selectedExpense"
-						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+						class="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
 					>
 						<option value="" disabled>{{ __('اختر المصروف') }}</option>
 						<option v-for="ex in nameExpenses" :key="ex.name" :value="ex.name">
@@ -36,14 +36,14 @@
 
 				<!-- Amount -->
 				<div class="flex flex-col gap-1">
-					<label class="text-sm font-medium text-gray-700">{{ __('المبلغ') }}</label>
+					<label class="text-base font-medium text-gray-700">{{ __('المبلغ') }}</label>
 					<input
 						v-model.number="amount"
 						ref="amountInput"
 						type="number"
 						min="0.01"
 						step="0.01"
-						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+						class="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 						:placeholder="__('أدخل المبلغ')"
 						@focus="handleAmountFocus"
 						@click="handleAmountClick"
@@ -53,21 +53,21 @@
 
 				<!-- Posting Date -->
 				<div class="flex flex-col gap-1">
-					<label class="text-sm font-medium text-gray-700">{{ __('تاريخ القيد') }}</label>
+					<label class="text-base font-medium text-gray-700">{{ __('تاريخ القيد') }}</label>
 					<input
 						v-model="postingDate"
 						type="date"
-						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+						class="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 					/>
 				</div>
 
 				<!-- Remarks -->
 				<div class="flex flex-col gap-1">
-					<label class="text-sm font-medium text-gray-700">{{ __('ملاحظات') }}</label>
+					<label class="text-base font-medium text-gray-700">{{ __('ملاحظات') }}</label>
 					<input
 						v-model="remarks"
 						type="text"
-						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+						class="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 						:placeholder="__('اختياري')"
 					/>
 				</div>
@@ -89,6 +89,7 @@
 			<div class="flex gap-2 w-full">
 				<Button
 					class="flex-1"
+					size="lg"
 					variant="subtle"
 					@click="handleClose"
 				>
@@ -96,6 +97,7 @@
 				</Button>
 				<Button
 					class="flex-1"
+					size="lg"
 					variant="solid"
 					theme="blue"
 					:loading="isSubmitting"

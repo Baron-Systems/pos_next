@@ -4,11 +4,9 @@
  */
 
 /**
- * POS rounding to the nearest 0.5 using thresholds.
- * Mirrors the server-side _round_pos_amount logic in pos_next/overrides/sales_invoice.py:
- * - fractional part >= 0.80  -> round up to next whole number
- * - fractional part >= 0.40  -> round to .5
- * - fractional part <  0.40  -> round down to whole number
+ * Standard rounding to the nearest 0.5 (round half up).
+ * Mirrors the server-side _round_pos_amount logic in pos_next/overrides/sales_invoice.py.
+ * Examples: 18.24 -> 18.0, 18.25 -> 18.5, 18.74 -> 18.5, 18.75 -> 19.0
  *
  * @param {number} amount - The amount to round
  * @param {number} precision - Decimal precision (default 2)
@@ -21,18 +19,7 @@ export function roundPosAmount(amount, precision = 2) {
 	}
 
 	const sign = value >= 0 ? 1 : -1
-	const absValue = Math.abs(value)
-	const integerPart = Math.floor(absValue)
-	const fractional = absValue - integerPart
-
-	let rounded
-	if (fractional >= 0.8) {
-		rounded = integerPart + 1
-	} else if (fractional >= 0.4) {
-		rounded = integerPart + 0.5
-	} else {
-		rounded = integerPart
-	}
+	const rounded = Math.floor(Math.abs(value) * 2 + 0.5) / 2
 
 	return Number((sign * rounded).toFixed(precision))
 }

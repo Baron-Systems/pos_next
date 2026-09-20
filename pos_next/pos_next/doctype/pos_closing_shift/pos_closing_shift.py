@@ -242,7 +242,9 @@ class POSClosingShift(Document):
                 or 1
             )
 
-            sales_breakdown[currency] += flt(invoice_doc.get("grand_total") or 0)
+            sales_breakdown[currency] += flt(
+                invoice_doc.get("rounded_total") or invoice_doc.get("grand_total") or 0
+            )
             net_breakdown[currency] += flt(invoice_doc.get("net_total") or 0)
 
             for payment in invoice_doc.get("payments", []):
@@ -502,7 +504,11 @@ def _process_invoice(invoice, invoice_field, company_currency, cash_mode, paymen
     conversion_rate = invoice.get("conversion_rate")
     is_return = invoice.get("is_return", 0)
 
-    base_grand_total = get_base_value(invoice, "grand_total", "base_grand_total", conversion_rate)
+    # Use rounded_total when available so the closing shift shows the
+    # actual amount charged to the customer (after POS rounding)
+    base_grand_total = get_base_value(
+        invoice, "rounded_total", "base_rounded_total", conversion_rate
+    ) or get_base_value(invoice, "grand_total", "base_grand_total", conversion_rate)
     base_net_total = get_base_value(invoice, "net_total", "base_net_total", conversion_rate)
 
     # Build transaction record
@@ -513,7 +519,7 @@ def _process_invoice(invoice, invoice_field, company_currency, cash_mode, paymen
         "transaction_datetime": _get_transaction_timestamp(invoice),
         "grand_total": base_grand_total,
         "transaction_currency": invoice.get("currency") or company_currency,
-        "transaction_amount": flt(invoice.get("grand_total")),
+        "transaction_amount": flt(invoice.get("rounded_total") or invoice.get("grand_total")),
         "customer": invoice.customer,
         "is_return": is_return,
         "return_against": invoice.get("return_against") if is_return else None,
