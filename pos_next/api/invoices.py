@@ -484,10 +484,18 @@ def update_invoice(data):
                     original = original_payments[i]
                     original_amount = flt(original.get('amount', 0))
                     current_amount = flt(payment.amount)
-                    # For regular: restore if reset to 0; For returns: restore if amount changed from negative to 0
-                    if (original_amount > 0 and current_amount == 0) or (original_amount < 0 and current_amount == 0):
+                    # Return invoices require negative payment amounts
+                    if invoice_doc.get('is_return') and original_amount > 0:
+                        original_amount = -original_amount
+                    # For regular: restore if reset to 0
+                    # For returns: restore if reset to 0 or ERPNext flipped it to positive
+                    if (original_amount > 0 and current_amount == 0) or (
+                        original_amount < 0 and (current_amount == 0 or current_amount > 0)
+                    ):
                         payment.amount = original_amount
                         payment.base_amount = flt(original.get('base_amount', original_amount))
+                        if invoice_doc.get('is_return') and payment.base_amount > 0:
+                            payment.base_amount = -payment.base_amount
                         payments_restored = True
                     # Restore mode_of_payment and type if ERPNext changed them
                     original_mop = original.get('mode_of_payment')
@@ -747,10 +755,18 @@ def update_invoice(data):
                     original = original_payments[i]
                     original_amount = flt(original.get('amount', 0))
                     current_amount = flt(payment.amount)
-                    # For regular: restore if reset to 0; For returns: restore if amount changed from negative to 0
-                    if (original_amount > 0 and current_amount == 0) or (original_amount < 0 and current_amount == 0):
+                    # Return invoices require negative payment amounts
+                    if invoice_doc.get('is_return') and original_amount > 0:
+                        original_amount = -original_amount
+                    # For regular: restore if reset to 0
+                    # For returns: restore if reset to 0 or ERPNext flipped it to positive
+                    if (original_amount > 0 and current_amount == 0) or (
+                        original_amount < 0 and (current_amount == 0 or current_amount > 0)
+                    ):
                         payment.amount = original_amount
                         payment.base_amount = flt(original.get('base_amount', original_amount))
+                        if invoice_doc.get('is_return') and payment.base_amount > 0:
+                            payment.base_amount = -payment.base_amount
                         payments_restored_again = True
                     # Restore mode_of_payment and type if ERPNext changed them during save/validation
                     original_mop = original.get('mode_of_payment')
@@ -1102,10 +1118,18 @@ def submit_invoice(invoice=None, data=None):
                     original = original_invoice_payments[i]
                     original_amount = flt(original.get('amount', 0))
                     current_amount = flt(payment.amount)
-                    # For regular: restore if reset to 0; For returns: restore if amount changed from negative to 0
-                    if (original_amount > 0 and current_amount == 0) or (original_amount < 0 and current_amount == 0):
+                    # Return invoices require negative payment amounts
+                    if invoice_doc.get('is_return') and original_amount > 0:
+                        original_amount = -original_amount
+                    # For regular: restore if reset to 0
+                    # For returns: restore if reset to 0 or ERPNext flipped it to positive
+                    if (original_amount > 0 and current_amount == 0) or (
+                        original_amount < 0 and (current_amount == 0 or current_amount > 0)
+                    ):
                         payment.amount = original_amount
                         payment.base_amount = flt(original.get('base_amount', original_amount))
+                        if invoice_doc.get('is_return') and payment.base_amount > 0:
+                            payment.base_amount = -payment.base_amount
                         payments_restored = True
                     # Restore mode_of_payment and type if ERPNext changed them
                     original_mop = original.get('mode_of_payment')
@@ -1163,6 +1187,19 @@ def submit_invoice(invoice=None, data=None):
                     if account_info:
                         payment.account = account_info.get("account")
 
+            # Defensive fix: POS return invoice payments must never be positive.
+            # ERPNext may reset/refetch payment rows with positive values from POS Profile.
+            if invoice_doc.get('is_return'):
+                for payment in invoice_doc.payments:
+                    if flt(payment.amount) > 0:
+                        payment.amount = -flt(payment.amount)
+                        payment.base_amount = -flt(payment.base_amount or payment.amount)
+                        frappe.log_error(
+                            f"Corrected positive payment amount for return invoice {invoice_doc.name}: "
+                            f"{payment.mode_of_payment} = {payment.amount}",
+                            "Return Payment Sign Fix"
+                        )
+
             # Calculate paid_amount from payments for all POS invoices (including returns)
             invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
             invoice_doc.base_paid_amount = flt(
@@ -1216,10 +1253,27 @@ def submit_invoice(invoice=None, data=None):
         if not pos_settings_allow_negative:
             _validate_stock_on_invoice(invoice_doc)
 
-        # Save before submit
-        invoice_doc.flags.ignore_permissions = True
-        frappe.flags.ignore_account_permission = True
-        invoice_doc.save()
+        # ERPNext's set_total_amount_to_default_mop may append a positive payment row
+        # for POS return invoices, which then fails verify_payment_amount_is_negative.
+        # POS Next already sends the correct negative refund payments, so skip it.
+        from erpnext.controllers.taxes_and_totals import calculate_taxes_and_totals as _taxes_calc_cls
+        _original_set_total = _taxes_calc_cls.set_total_amount_to_default_mop
+        def _skip_set_total_for_returns(self, total_amount_to_pay):
+            if self.doc.get('is_return'):
+                frappe.log_error(
+                    f"Skipped set_total_amount_to_default_mop for return invoice {self.doc.name}",
+                    "Return Payment Auto-Fill Skip"
+                )
+                return
+            return _original_set_total(self, total_amount_to_pay)
+        _taxes_calc_cls.set_total_amount_to_default_mop = _skip_set_total_for_returns
+        try:
+            # Save before submit
+            invoice_doc.flags.ignore_permissions = True
+            frappe.flags.ignore_account_permission = True
+            invoice_doc.save()
+        finally:
+            _taxes_calc_cls.set_total_amount_to_default_mop = _original_set_total
 
         # Ensure payments table matches original data exactly AFTER save so ERPNext validate can't reset it
         if original_invoice_payments and hasattr(invoice_doc, 'payments') and doctype == "Sales Invoice":
