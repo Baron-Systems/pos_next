@@ -1,7 +1,7 @@
 <template>
-<Dialog v-model="show" :options="{ title: __('دفع العميل'), size: 'xl' }" @after-leave="() => { console.log('CustomerPaymentDialog after-leave'); $emit('after-leave') }">
+<Dialog v-model="show" :options="{ title: __('دفع العميل'), size: '4xl' }" @after-leave="() => { console.log('CustomerPaymentDialog after-leave'); $emit('after-leave') }">
 <template #body-content>
-<div class="flex flex-col gap-4 min-h-[500px]">
+<div class="flex flex-col gap-4 min-h-[600px]">
 
 <!-- Payment Area (only when supplier selected) -->
 <div v-if="localCustomer" class="bg-gray-50 border border-gray-200 rounded-xl p-4">
@@ -93,7 +93,7 @@ type="text"
 <tbody class='divide-y divide-gray-100'>
 <template v-for='t in filteredStatement' :key='`${t.type}-${t.name}`'>
 <tr class='hover:bg-gray-50'>
-<td class='px-3 py-2 text-gray-600'>{{ formatDate(t.posting_date) }}</td>
+<td class='px-3 py-2 text-gray-600' dir='ltr'>{{ formatDateTime(t) }}</td>
 <td class='px-3 py-2 font-medium text-gray-900'>{{ t.name }}</td>
 <td class='px-3 py-2 text-gray-600'>{{ formatRecordType(t) }}</td>
 <td class='px-3 py-2 text-end font-semibold'>{{ formatCurrency(t.type === 'invoice' ? t.grand_total : t.paid_amount) }}</td>
@@ -271,7 +271,20 @@ return formatCurrencyUtil(value, summary.value.currency || "USD")
 
 function formatDate(date) {
 if (!date) return "-"
-return new Date(date).toLocaleDateString("ar-SA")
+return new Date(date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
+}
+
+function formatDateTime(record) {
+const dateStr = formatDate(record.posting_date)
+if (dateStr === "-") return dateStr
+let time = record.posting_time
+	? String(record.posting_time).slice(0, 5)
+	: ""
+if (!time && record.creation) {
+	const parts = String(record.creation).split(" ")
+	if (parts[1]) time = parts[1].slice(0, 5)
+}
+return time ? `${dateStr} ${time}` : dateStr
 }
 
 function formatPaymentType(type) {
@@ -476,7 +489,7 @@ const rows = filteredStatement.value.map((t) => {
       '</tbody></table>'
   }
   return '<tr class="' + (isInv ? 'inv' : 'pay') + '">' +
-    '<td>' + formatDate(t.posting_date) + '</td>' +
+    '<td dir="ltr">' + formatDateTime(t) + '</td>' +
     '<td>' + t.name + '</td>' +
     '<td>' + (isInv ? (t.is_return ? __('مرتجع مبيعات') : __('فاتورة مبيعات')) : (t.payment_type === 'Pay' ? __('دفع للعميل') : __('قبض من العميل'))) + '</td>' +
     '<td class="amount">' + amount + '</td>' +
@@ -513,7 +526,7 @@ const html = `<!DOCTYPE html>
 <div class='letterhead-top'>${letterhead.value.content}</div>
 <div class='header'>
   <h2>${__('تقرير العميل')}</h2>
-  <p class='meta'>${customerName} · ${props.company} · ${__('رصيد الحساب')}: ${formatCurrency(accountBalance.value)} · ${new Date().toLocaleDateString('ar-SA')}</p>
+  <p class='meta'>${customerName} · ${props.company} · ${__('رصيد الحساب')}: ${formatCurrency(accountBalance.value)} · ${new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</p>
 </div>
 <table>
   <thead>

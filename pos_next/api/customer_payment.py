@@ -408,7 +408,7 @@ def get_customer_statement(customer, company=None, limit=300):
     invoices = frappe.get_all(
         "Sales Invoice",
         filters=inv_filters,
-        fields=["name", "posting_date", "due_date", "grand_total", "outstanding_amount", "status", "currency", "customer_name", "is_return"],
+        fields=["name", "posting_date", "posting_time", "due_date", "grand_total", "outstanding_amount", "status", "currency", "customer_name", "is_return", "creation"],
         order_by="posting_date asc, name asc",
         limit=limit,
     )
@@ -427,7 +427,7 @@ def get_customer_statement(customer, company=None, limit=300):
     payments = frappe.get_all(
         "Payment Entry",
         filters=pay_filters,
-        fields=["name", "posting_date", "paid_amount", "mode_of_payment", "reference_no", "payment_type", "remarks"],
+        fields=["name", "posting_date", "paid_amount", "mode_of_payment", "reference_no", "payment_type", "remarks", "creation"],
         order_by="posting_date asc, name asc",
         limit=limit,
     )

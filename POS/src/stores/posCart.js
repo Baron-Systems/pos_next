@@ -447,6 +447,15 @@ export const usePOSCartStore = defineStore("posCart", () => {
 				item.rate = grossListRate
 
 				hasDiscounts = discountPercentage > 0 || discountAmount > 0
+			} else if (hasPricingRules(item.pricing_rules)) {
+				// Server did not discount this item but it still carries an offer
+				// discount (e.g. it became ineligible, or the offer scope changed).
+				// Sync is two-way: clear the stale offer discount while keeping
+				// manual discounts (items without pricing_rules) untouched.
+				item.discount_percentage = 0
+				item.discount_amount = 0
+				item.pricing_rules = []
+				item.applied_promotional_schemes = []
 			}
 
 			recalculateItem(item)
@@ -851,50 +860,53 @@ export const usePOSCartStore = defineStore("posCart", () => {
 			// Check for cancellation
 			if (signal?.aborted) return false
 
-			// If any offers are invalid, remove them and reapply remaining
+			// Re-evaluate applied offers against the CURRENT cart on every change.
+			// Not only when an offer becomes invalid: cart edits can also make
+			// NEW items eligible (e.g. qty crossing min_qty) or remove eligibility,
+			// so the server must recalculate which items get the discount.
+			const validOfferCodes = appliedOffers.value
+				.filter(o => !invalidOffers.find(inv => inv.code === o.code))
+				.map(o => o.code)
+
+			if (validOfferCodes.length === 0) {
+				// All offers invalid - clear everything
+				appliedOffers.value = []
+				processFreeItems([])
+
+				// Reset all item rates to original (remove discounts)
+				invoiceItems.value.forEach(item => {
+					if (item.pricing_rules && item.pricing_rules.length > 0) {
+						item.discount_percentage = 0
+						item.discount_amount = 0
+						item.pricing_rules = []
+						recalculateItem(item)
+					}
+				})
+				rebuildIncrementalCache()
+			} else {
+				// Reapply all valid offers with the current cart snapshot
+				const invoiceData = buildOfferEvaluationPayload(currentProfile)
+				const response = await applyOffersResource.submit({
+					invoice_data: invoiceData,
+					selected_offers: validOfferCodes,
+				})
+
+				if (signal?.aborted) return false
+
+				const { items: responseItems, freeItems, appliedRules } =
+					parseOfferResponse(response)
+
+				applyDiscountsFromServer(responseItems)
+				processFreeItems(freeItems)
+				filterActiveOffers(appliedRules)
+
+				// Update appliedOffers to only include valid ones
+				appliedOffers.value = appliedOffers.value.filter(entry =>
+					appliedRules.includes(entry.code)
+				)
+			}
+
 			if (invalidOffers.length > 0) {
-				const validOfferCodes = appliedOffers.value
-					.filter(o => !invalidOffers.find(inv => inv.code === o.code))
-					.map(o => o.code)
-
-				if (validOfferCodes.length === 0) {
-					// All offers invalid - clear everything
-					appliedOffers.value = []
-					processFreeItems([])
-
-					// Reset all item rates to original (remove discounts)
-					invoiceItems.value.forEach(item => {
-						if (item.pricing_rules && item.pricing_rules.length > 0) {
-							item.discount_percentage = 0
-							item.discount_amount = 0
-							item.pricing_rules = []
-							recalculateItem(item)
-						}
-					})
-					rebuildIncrementalCache()
-				} else {
-					// Reapply only valid offers
-					const invoiceData = buildOfferEvaluationPayload(currentProfile)
-					const response = await applyOffersResource.submit({
-						invoice_data: invoiceData,
-						selected_offers: validOfferCodes,
-					})
-
-					if (signal?.aborted) return false
-
-					const { items: responseItems, freeItems, appliedRules } =
-						parseOfferResponse(response)
-
-					applyDiscountsFromServer(responseItems)
-					processFreeItems(freeItems)
-					filterActiveOffers(appliedRules)
-
-					// Update appliedOffers to only include valid ones
-					appliedOffers.value = appliedOffers.value.filter(entry =>
-						appliedRules.includes(entry.code)
-					)
-				}
-
 				// Wait for Vue to update before showing toast
 				await nextTick()
 
@@ -903,7 +915,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 				showWarning(__('Offer removed: {0}. Cart no longer meets requirements.', [offerNames]))
 				return true
 			}
-			return false
+			return invalidOffers.length > 0
 		} catch (error) {
 			if (signal?.aborted) return false
 			console.error("Error validating offers:", error)
