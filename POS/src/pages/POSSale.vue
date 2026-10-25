@@ -35,6 +35,7 @@
 				@logout="uiStore.showLogoutDialog = true"
 				@toggle-success-dialog="showSuccessDialogEnabled = !showSuccessDialogEnabled"
 				@price-list-change="handlePriceListChange"
+				@toggle-sidebar="mobileSidebarOpen = !mobileSidebarOpen"
 			>
 				<template #menu-items>
 					<button
@@ -183,8 +184,10 @@
 					:show-currency-exchange="posSettingsStore.enableCurrencyExchange && posSettingsStore.hasCurrencySetup"
 					:has-multiple-payment-methods="hasMultiplePaymentMethods"
 					:cart-only="cartOnly"
-					@menu-clicked="handleManagementMenuClick"
-					@toggle-cart-only="handleToggleCartOnly"
+					:mobile-open="mobileSidebarOpen"
+					@menu-clicked="mobileSidebarOpen = false; handleManagementMenuClick($event)"
+					@toggle-cart-only="mobileSidebarOpen = false; handleToggleCartOnly()"
+					@close="mobileSidebarOpen = false"
 				/>
 
 				<!-- Main Content Container -->
@@ -495,6 +498,7 @@
 				:pos-profile="shiftStore.profileName"
 				:pos-opening-shift="shiftStore.currentShift?.name"
 				:currency="shiftStore.profileCurrency"
+				:initial-invoice="returnInvoiceFromHistory"
 				@return-created="handleReturnCreated"
 				@after-leave="handleRefocusBarcode"
 			/>
@@ -1159,6 +1163,7 @@ const { isRTL } = useLocale();
 // Component refs
 const itemsSelectorRef = ref(null);
 const cartOnly = ref(false);
+const mobileSidebarOpen = ref(false); // Management sidebar drawer on mobile
 const offersDialogRef = ref(null);
 const containerRef = ref(null);
 const dividerRef = ref(null);
@@ -2681,10 +2686,21 @@ function handleBatchSerialSelected(batchSerial) {
 	}
 }
 
+// Invoice selected in history to open directly in the return dialog
+const returnInvoiceFromHistory = ref("");
+
 function handleCreateReturnFromHistory(invoice) {
+	uiStore.showHistoryDialog = false;
+	returnInvoiceFromHistory.value = invoice.name;
 	uiStore.showReturnDialog = true;
-	showWarning(__("Creating return for invoice {0}", [invoice.name]));
 }
+
+watch(
+	() => uiStore.showReturnDialog,
+	(val) => {
+		if (!val) returnInvoiceFromHistory.value = "";
+	},
+);
 
 async function handleCopyInvoice(invoice) {
 	try {
@@ -2875,7 +2891,7 @@ async function confirmClearCache() {
 
 			showSuccess(__("All cached data has been cleared successfully"));
 		} else {
-			throw new Error("Failed to clear cache completely");
+			throw new Error(__("Failed to clear cache completely"));
 		}
 	} catch (error) {
 		log.error("Error clearing cache:", error);

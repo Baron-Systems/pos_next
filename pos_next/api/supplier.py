@@ -197,6 +197,12 @@ def create_supplier_payment(supplier, company, amount, mode_of_payment="Cash", p
         if discount_amount > 0:
             total_allocated = sum(flt(ref.allocated_amount) for ref in pe.get("references", []))
             applied_discount = min(discount_amount, max(0, total_allocated - amount))
+            # Never drop the discount silently: it can only be booked against
+            # open purchase invoices that cover amount + discount
+            if applied_discount < discount_amount - 0.005:
+                frappe.throw(_(
+                    "Cash discount cannot be applied in full. Maximum allowed discount is {0} because open purchase invoices do not cover the payment amount plus the discount."
+                ).format(flt(applied_discount, 2)))
             if applied_discount > 0:
                 pe.append("deductions", {
                     "account": discount_account,
@@ -252,8 +258,19 @@ def get_supplier_statement(supplier, company=None, limit=300):
         order_by="posting_date asc, name asc",
         limit=limit,
     )
+    # Cash discount booked through the deductions table (stored as negative)
+    discount_map = {}
+    if payments:
+        for d in frappe.get_all(
+            "Payment Entry Deduction",
+            filters={"parent": ["in", [p.name for p in payments]], "parenttype": "Payment Entry"},
+            fields=["parent", "amount"],
+        ):
+            discount_map[d.parent] = discount_map.get(d.parent, 0) + flt(d.amount)
+
     for pay in payments:
         pay["type"] = "payment"
+        pay["discount_amount"] = abs(discount_map.get(pay.name, 0))
 
     combined = sorted(invoices + payments, key=lambda x: (x.posting_date or "0000-00-00", x.name), reverse=True)
     return combined

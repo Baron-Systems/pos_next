@@ -1,36 +1,17 @@
 <template>
 	<div class="flex flex-col h-full bg-gray-50">
-		<!-- Item Groups Filter Tabs -->
+		<!-- Item Groups Filter: searchable dropdown -->
 		<div v-if="!compact" class="px-1.5 sm:px-3 pt-1.5 sm:pt-3 pb-1.5 sm:pb-2 bg-white border-b border-gray-200">
-			<div class="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide snap-x snap-mandatory">
-				<button
-					@click="itemStore.setSelectedItemGroup(null)"
-					:class="[
-						'flex items-center px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium whitespace-nowrap transition-[background-color,border-color] duration-75 touch-manipulation snap-start flex-shrink-0',
-						!selectedItemGroup
-							? 'bg-blue-50 text-blue-600 border-2 border-blue-500 shadow-sm'
-							: 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 active:bg-gray-100',
-					]"
-				>
-					<svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-					</svg>
-					<span>{{ __('All Items') }}</span>
-				</button>
-				<button
-					v-for="group in itemGroups"
-					:key="group.item_group"
-					@click="itemStore.setSelectedItemGroup(group.item_group)"
-					:class="[
-						'flex items-center px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium whitespace-nowrap transition-[background-color,border-color] duration-75 touch-manipulation snap-start flex-shrink-0',
-						selectedItemGroup === group.item_group
-							? 'bg-blue-50 text-blue-600 border-2 border-blue-500 shadow-sm'
-							: 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 active:bg-gray-100',
-					]"
-				>
-					<span>{{ __(group.item_group) }}</span>
-				</button>
-			</div>
+			<SelectInput
+				:model-value="selectedItemGroup || ''"
+				:options="itemGroupOptions"
+				:searchable="itemGroupOptions.length > 8"
+				:search-placeholder="__('ابحث عن مجموعة...')"
+				:no-results-text="__('لا توجد نتائج')"
+				:max-displayed="itemGroupOptions.length"
+				select-class="!h-9 !text-sm !bg-white !border-gray-300 hover:!bg-gray-50"
+				@change="(group) => itemStore.setSelectedItemGroup(group || null)"
+			/>
 		</div>
 
 		<!-- Cache Sync Indicator -->
@@ -428,101 +409,14 @@
 					<p class="ms-2 text-xs text-gray-500">{{ __('Loading more items...') }}</p>
 				</div>
 
-				<!-- End of Results Indicator - Only show on last page or when all items fit in one page -->
-				<div v-else-if="!hasMore && filteredItems.length > 0 && !searchTerm && (currentPage === totalPages || totalPages === 1)" class="flex justify-center items-center py-3">
+				<!-- End of Results Indicator - Only show when every item is rendered -->
+				<div v-else-if="!hasMore && filteredItems.length > 0 && !searchTerm && allItemsRendered" class="flex justify-center items-center py-3">
 					<p class="text-xs text-gray-400">{{ __('All items loaded') }}</p>
 				</div>
 
 				<!-- Search Results Count -->
 				<div v-else-if="searchTerm && filteredItems.length > 0" class="flex justify-center items-center py-3">
 					<p class="text-xs text-gray-500">{{ __('{0} items found', [filteredItems.length]) }}</p>
-				</div>
-			</div>
-
-			<!-- Pagination Controls for Grid View -->
-			<div v-if="totalPages > 1" class="px-2 sm:px-3 py-2 bg-white border-t border-gray-200">
-				<div class="flex flex-col sm:flex-row items-center justify-between gap-2">
-					<div class="text-[10px] sm:text-xs text-gray-600 order-2 sm:order-1">
-						{{ __('{0} - {1} of {2}', [
-							(((currentPage - 1) * itemsPerPage) + 1),
-							Math.min(currentPage * itemsPerPage, filteredItems.length),
-							filteredItems.length
-						]) }}
-					</div>
-					<div class="flex items-center gap-1 order-1 sm:order-2">
-						<button
-							@click="goToPage(1)"
-							:disabled="currentPage === 1"
-							:class="[
-								'px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-lg border transition-[background-color] duration-75 touch-manipulation',
-								currentPage === 1
-									? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-									: 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
-							]"
-							:aria-label="__('Go to first page')"
-						>
-							<span class="hidden xs:inline">{{ __('First') }}</span>
-							<span class="xs:hidden">«</span>
-						</button>
-						<button
-							@click="previousPage"
-							:disabled="currentPage === 1"
-							:class="[
-								'px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-lg border transition-[background-color] duration-75 touch-manipulation',
-								currentPage === 1
-									? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-									: 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
-							]"
-							:aria-label="__('Go to previous page')"
-						>
-							<span class="hidden xs:inline">{{ __('Previous') }}</span>
-							<span class="xs:hidden">‹</span>
-						</button>
-						<div class="flex items-center gap-0.5 sm:gap-1">
-							<button
-								v-for="page in getPaginationRange()"
-								:key="page"
-								@click="goToPage(page)"
-								:class="[
-									'min-w-[28px] sm:min-w-[32px] px-1.5 sm:px-2.5 py-1.5 text-[10px] sm:text-xs font-medium rounded-lg border transition-[background-color,border-color] duration-75 touch-manipulation',
-									currentPage === page
-										? 'bg-blue-600 text-white border-blue-600'
-										: 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
-								]"
-								:aria-label="__('Go to page {0}', [page])"
-							>
-								{{ page }}
-							</button>
-						</div>
-						<button
-							@click="nextPage"
-							:disabled="currentPage === totalPages"
-							:class="[
-								'px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-lg border transition-[background-color] duration-75 touch-manipulation',
-								currentPage === totalPages
-									? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-									: 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
-							]"
-							:aria-label="__('Go to next page')"
-						>
-							<span class="hidden xs:inline">{{ __('Next') }}</span>
-							<span class="xs:hidden">›</span>
-						</button>
-						<button
-							@click="goToPage(totalPages)"
-							:disabled="currentPage === totalPages"
-							:class="[
-								'px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-lg border transition-[background-color] duration-75 touch-manipulation',
-								currentPage === totalPages
-									? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-									: 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
-							]"
-							:aria-label="__('Go to last page')"
-						>
-							<span class="hidden xs:inline">{{ __('Last') }}</span>
-							<span class="xs:hidden">»</span>
-						</button>
-					</div>
 				</div>
 			</div>
 		</div>
@@ -641,8 +535,8 @@
 							</td>
 						</tr>
 
-						<!-- End of Results Indicator Row - Only show on last page or when all items fit in one page -->
-						<tr v-else-if="!hasMore && filteredItems.length > 0 && !searchTerm && (currentPage === totalPages || totalPages === 1)">
+						<!-- End of Results Indicator Row - Only show when every item is rendered -->
+						<tr v-else-if="!hasMore && filteredItems.length > 0 && !searchTerm && allItemsRendered">
 							<td colspan="6" class="px-2 sm:px-3 py-3 text-center bg-white">
 								<p class="text-xs text-gray-400">{{ __('All items loaded') }}</p>
 							</td>
@@ -656,93 +550,6 @@
 						</tr>
 					</tbody>
 				</table>
-			</div>
-
-			<!-- Pagination Controls for List View -->
-			<div v-if="totalPages > 1" class="px-2 sm:px-3 py-2 bg-white border-t border-gray-200">
-				<div class="flex flex-col sm:flex-row items-center justify-between gap-2">
-					<div class="text-[10px] sm:text-xs text-gray-600 order-2 sm:order-1">
-						{{ __('{0} - {1} of {2}', [
-							(((currentPage - 1) * itemsPerPage) + 1),
-							Math.min(currentPage * itemsPerPage, filteredItems.length),
-							filteredItems.length
-						]) }}
-					</div>
-					<div class="flex items-center gap-1 order-1 sm:order-2">
-						<button
-							@click="goToPage(1)"
-							:disabled="currentPage === 1"
-							:class="[
-								'px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-lg border transition-[background-color] duration-75 touch-manipulation',
-								currentPage === 1
-									? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-									: 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
-							]"
-							:aria-label="__('Go to first page')"
-						>
-							<span class="hidden xs:inline">{{ __('First') }}</span>
-							<span class="xs:hidden">«</span>
-						</button>
-						<button
-							@click="previousPage"
-							:disabled="currentPage === 1"
-							:class="[
-								'px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-lg border transition-[background-color] duration-75 touch-manipulation',
-								currentPage === 1
-									? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-									: 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
-							]"
-							:aria-label="__('Go to previous page')"
-						>
-							<span class="hidden xs:inline">{{ __('Previous') }}</span>
-							<span class="xs:hidden">‹</span>
-						</button>
-						<div class="flex items-center gap-0.5 sm:gap-1">
-							<button
-								v-for="page in getPaginationRange()"
-								:key="page"
-								@click="goToPage(page)"
-								:class="[
-									'min-w-[28px] sm:min-w-[32px] px-1.5 sm:px-2.5 py-1.5 text-[10px] sm:text-xs font-medium rounded-lg border transition-[background-color,border-color] duration-75 touch-manipulation',
-									currentPage === page
-										? 'bg-blue-600 text-white border-blue-600'
-										: 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
-								]"
-								:aria-label="__('Go to page {0}', [page])"
-							>
-								{{ page }}
-							</button>
-						</div>
-						<button
-							@click="nextPage"
-							:disabled="currentPage === totalPages"
-							:class="[
-								'px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-lg border transition-[background-color] duration-75 touch-manipulation',
-								currentPage === totalPages
-									? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-									: 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
-							]"
-							:aria-label="__('Go to next page')"
-						>
-							<span class="hidden xs:inline">{{ __('Next') }}</span>
-							<span class="xs:hidden">›</span>
-						</button>
-						<button
-							@click="goToPage(totalPages)"
-							:disabled="currentPage === totalPages"
-							:class="[
-								'px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-lg border transition-[background-color] duration-75 touch-manipulation',
-								currentPage === totalPages
-									? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-									: 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
-							]"
-							:aria-label="__('Go to last page')"
-						>
-							<span class="hidden xs:inline">{{ __('Last') }}</span>
-							<span class="xs:hidden">»</span>
-						</button>
-					</div>
-				</div>
 			</div>
 		</div>
 	</template>
@@ -761,6 +568,7 @@
 
 <script setup>
 import LazyImage from "@/components/common/LazyImage.vue"
+import SelectInput from "@/components/common/SelectInput.vue"
 import WarehouseAvailabilityDialog from "@/components/sale/WarehouseAvailabilityDialog.vue"
 import { useItemSearchStore } from "@/stores/itemSearch"
 import { usePOSSettingsStore } from "@/stores/posSettings"
@@ -818,6 +626,12 @@ const {
 	sortOrder,
 } = storeToRefs(itemStore)
 
+// Item group dropdown options ("" = all items)
+const itemGroupOptions = computed(() => [
+	{ value: "", label: __("كل المجموعات") },
+	...(itemGroups.value || []).map((group) => ({ value: group.item_group, label: __(group.item_group) })),
+])
+
 // Local state
 const viewMode = ref("grid")
 const lastKeyTime = ref(0)
@@ -848,9 +662,9 @@ const listScrollContainer = ref(null)
 // Store scroll listener cleanup functions
 const scrollCleanupFns = ref([])
 
-// Pagination state (for client-side display)
-const currentPage = ref(1)
-const itemsPerPage = ref(20)
+// Progressive rendering: show a batch, render the next batch when scrolling near the bottom
+const RENDER_BATCH_SIZE = 40
+const visibleCount = ref(RENDER_BATCH_SIZE)
 
 // Sorted so favorites (pinned) appear first
 const sortedFilteredItems = computed(() => {
@@ -860,18 +674,32 @@ const sortedFilteredItems = computed(() => {
 	return [...list].sort((a, b) => (fav.has(b.item_code) ? 1 : 0) - (fav.has(a.item_code) ? 1 : 0))
 })
 
-// Computed paginated items (uses sorted list so favorites show first)
+// Rendered items (uses sorted list so favorites show first)
 const paginatedItems = computed(() => {
 	if (!sortedFilteredItems.value.length) return []
-	const start = (currentPage.value - 1) * itemsPerPage.value
-	const end = start + itemsPerPage.value
-	return sortedFilteredItems.value.slice(start, end)
+	return sortedFilteredItems.value.slice(0, visibleCount.value)
 })
 
-const totalPages = computed(() => {
-	if (!sortedFilteredItems.value.length) return 0
-	return Math.ceil(sortedFilteredItems.value.length / itemsPerPage.value)
-})
+const allItemsRendered = computed(() => visibleCount.value >= sortedFilteredItems.value.length)
+
+// Large screens: if the rendered batch doesn't fill the container there is no scroll event,
+// so keep rendering batches until it scrolls or everything is shown
+watch(
+	() => paginatedItems.value.length,
+	async () => {
+		await nextTick()
+		const container = viewMode.value === "grid" ? gridScrollContainer.value : listScrollContainer.value
+		if (container && !allItemsRendered.value && container.scrollHeight <= container.clientHeight) {
+			visibleCount.value += RENDER_BATCH_SIZE
+		}
+	},
+)
+
+function resetVisibleItems() {
+	visibleCount.value = RENDER_BATCH_SIZE
+	const container = viewMode.value === "grid" ? gridScrollContainer.value : listScrollContainer.value
+	if (container) container.scrollTop = 0
+}
 
 const SEARCH_PLACEHOLDERS = Object.freeze({
 	auto: __("Auto-Add ON - Type or scan barcode"),
@@ -951,7 +779,7 @@ watch(
 	{ immediate: true },
 )
 
-// Reset to page 1 when filtered items meaningfully change
+// Back to the top when filtered items meaningfully change
 watch(
 	filteredItems,
 	(newItems) => {
@@ -967,7 +795,7 @@ watch(
 		const signature = `${itemCount}|${firstCode}|${middleCode}|${lastCode}`
 
 		if (signature !== lastFilterSignature.value) {
-			currentPage.value = 1
+			resetVisibleItems()
 			lastFilterSignature.value = signature
 		}
 
@@ -998,6 +826,14 @@ const handleScrollRAF = throttleRAF((event) => {
 	const scrollPosition = container.scrollTop + container.clientHeight
 	const scrollHeight = container.scrollHeight
 	const threshold = 200
+
+	const nearBottom = scrollHeight - scrollPosition < threshold
+
+	// Render the next batch of already-loaded items first
+	if (nearBottom && !allItemsRendered.value) {
+		visibleCount.value += RENDER_BATCH_SIZE
+		return
+	}
 
 	const isSearching = searchTerm.value && searchTerm.value.trim().length > 0
 
@@ -1423,56 +1259,6 @@ watch(viewMode, async () => {
 function setViewMode(mode) {
 	viewMode.value = mode
 	userManuallySetView.value = true
-}
-
-// Pagination functions
-function goToPage(page) {
-	if (page >= 1 && page <= totalPages.value) {
-		currentPage.value = page
-	}
-}
-
-function nextPage() {
-	if (currentPage.value < totalPages.value) {
-		currentPage.value++
-	}
-}
-
-function previousPage() {
-	if (currentPage.value > 1) {
-		currentPage.value--
-	}
-}
-
-function getPaginationRange() {
-	const range = []
-	const total = totalPages.value
-	const current = currentPage.value
-	const delta = 2 // Number of pages to show on each side of current page
-
-	if (total <= 7) {
-		// Show all pages if total is small
-		for (let i = 1; i <= total; i++) {
-			range.push(i)
-		}
-	} else {
-		// Show smart range with ellipsis
-		if (current <= 3) {
-			for (let i = 1; i <= 5; i++) {
-				range.push(i)
-			}
-		} else if (current >= total - 2) {
-			for (let i = total - 4; i <= total; i++) {
-				range.push(i)
-			}
-		} else {
-			for (let i = current - delta; i <= current + delta; i++) {
-				range.push(i)
-			}
-		}
-	}
-
-	return range
 }
 
 // Sort dropdown functions

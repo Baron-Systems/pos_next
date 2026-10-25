@@ -375,12 +375,13 @@ def get_cashiers(doctype, txt, searchfield, start, page_len, filters):
 
 
 @frappe.whitelist()
-def get_pos_invoices(pos_opening_shift, doctype=None):
+def get_pos_invoices(pos_opening_shift, doctype=None, submit_printed=True):
     if not doctype:
         pos_profile = frappe.db.get_value("POS Opening Shift", pos_opening_shift, "pos_profile")
         use_pos_invoice = False
         doctype = "POS Invoice" if use_pos_invoice else "Sales Invoice"
-    submit_printed_invoices(pos_opening_shift, doctype)
+    if submit_printed:
+        submit_printed_invoices(pos_opening_shift, doctype)
     cond = " and ifnull(consolidated_invoice,'') = ''" if doctype == "POS Invoice" else ""
     data = frappe.db.sql(
         f"""
@@ -714,12 +715,14 @@ def _build_currency_closing_balances(opening_shift, company_currency=None):
 
 
 @frappe.whitelist()
-def make_closing_shift_from_opening(opening_shift):
+def make_closing_shift_from_opening(opening_shift, submit_printed=True):
+    """submit_printed=False gives a read-only preview (used by the shift summary)."""
     opening_shift = json.loads(opening_shift)
     doctype = "Sales Invoice"
     invoice_field = "sales_invoice"
 
-    submit_printed_invoices(opening_shift.get("name"), doctype)
+    if submit_printed:
+        submit_printed_invoices(opening_shift.get("name"), doctype)
 
     # Initialize closing shift document
     closing_shift = frappe.new_doc("POS Closing Shift")
@@ -758,7 +761,7 @@ def make_closing_shift_from_opening(opening_shift):
         }))
 
     # Process invoices
-    invoices = get_pos_invoices(opening_shift.get("name"), doctype)
+    invoices = get_pos_invoices(opening_shift.get("name"), doctype, submit_printed=submit_printed)
     for invoice in invoices:
         txn = _process_invoice(invoice, invoice_field, company_currency, cash_mode, payments, taxes, summary)
         pos_transactions.append(txn)

@@ -5,8 +5,19 @@
 		<div class="flex py-2 sm:py-3">
 			<!-- POS Icon - Aligned with Management Sidebar (64px) -->
 			<div class="w-16 flex-shrink-0 flex items-center justify-center">
+				<!-- Mobile: toggles the management sidebar drawer -->
 				<button
-					class="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md flex-shrink-0 hover:bg-gray-50 active:scale-95 transition-all"
+					v-if="hasOpenShift"
+					type="button"
+					class="lg:hidden w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md flex-shrink-0 hover:bg-gray-50 active:scale-95 transition-all text-gray-700"
+					:aria-label="__('القائمة')"
+					:title="__('القائمة')"
+					@click="emit('toggle-sidebar')"
+				>
+					<FeatherIcon name="menu" class="w-5 h-5" />
+				</button>
+				<button
+					:class="[hasOpenShift ? 'hidden lg:flex' : 'flex', 'w-10 h-10 bg-white rounded-lg items-center justify-center shadow-md flex-shrink-0 hover:bg-gray-50 active:scale-95 transition-all']"
 					:aria-label="'POS-ABS'"
 					:title="__('POS-ABS')"
 				>
@@ -302,6 +313,7 @@ import StatusBadge from "@/components/common/StatusBadge.vue"
 import UserMenu from "@/components/common/UserMenu.vue"
 import LanguageSwitcher from "@/components/common/LanguageSwitcher.vue"
 import SelectInput from "@/components/common/SelectInput.vue"
+import { FeatherIcon } from "frappe-ui"
 import { computed, ref } from "vue"
 import { version } from "../../../package.json"
 
@@ -326,6 +338,7 @@ const emit = defineEmits([
 	"clear-cache",
 	"toggle-success-dialog",
 	"price-list-change",
+	"toggle-sidebar",
 ])
 
 function handleClearCacheClick() {

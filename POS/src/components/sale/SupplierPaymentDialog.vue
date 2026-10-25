@@ -41,7 +41,7 @@ step="0.01"
 @keyup.enter="executePayment"
 />
 </div>
-<div v-if="settingsStore.enableSupplierPaymentDiscount" class="w-32">
+<div v-if="settingsStore.enableSupplierPaymentDiscount && !(paymentAmount < 0)" class="w-32">
 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('خصم نقدي') }}</label>
 <Input
 v-model.number="discountAmount"
@@ -100,7 +100,7 @@ type="text"
 <td class='px-3 py-2 font-medium text-gray-900'>{{ t.name }}</td>
 <td class='px-3 py-2 text-gray-600'>{{ formatRecordType(t) }}</td>
 <td class='px-3 py-2 text-end font-semibold'>{{ formatCurrency(t.type === 'invoice' ? t.grand_total : t.paid_amount) }}</td>
-<td class='px-3 py-2 text-start text-gray-600'>{{ t.type === 'invoice' ? formatCurrency(t.outstanding_amount) : t.mode_of_payment }}</td>
+<td class='px-3 py-2 text-start text-gray-600'>{{ t.type === 'invoice' ? formatCurrency(t.outstanding_amount) : paymentDetail(t) }}</td>
 </tr>
 <tr v-if='t.items && t.items.length'>
 <td colspan='5' class='px-3 pb-3'>
@@ -223,6 +223,13 @@ if (!time && record.creation) {
 return time ? `${dateStr} ${time}` : dateStr
 }
 
+function paymentDetail(record) {
+const discount = Number(record.discount_amount) || 0
+return discount > 0
+	? `${record.mode_of_payment || ''} · ${__('خصم نقدي')}: ${formatCurrency(discount)}`
+	: record.mode_of_payment
+}
+
 function formatPaymentType(type) {
 const m = { Receive: __('قبض'), Pay: __('دفع') }
 return m[type] || type
@@ -315,7 +322,7 @@ const supplierName = localSupplier.value?.supplier_name || localSupplier.value?.
 const rows = filteredStatement.value.map((t) => {
   const isInv = t.type === 'invoice'
   const amount = formatCurrency(isInv ? t.grand_total : t.paid_amount)
-  const detail = isInv ? formatCurrency(t.outstanding_amount) : t.mode_of_payment
+  const detail = isInv ? formatCurrency(t.outstanding_amount) : paymentDetail(t)
   let itemsHtml = ''
   if (isInv && t.items && t.items.length) {
     itemsHtml = '<table class="items"><thead><tr><th>' + __('الصنف') + '</th><th>' + __('الكمية') + '</th><th>' + __('السعر') + '</th><th>' + __('المبلغ') + '</th></tr></thead><tbody>' +

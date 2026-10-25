@@ -746,6 +746,8 @@ const props = defineProps({
 	posProfile: String,
 	posOpeningShift: String,
 	currency: { type: String, default: "USD" },
+	// Invoice to open directly when the dialog opens (e.g. from invoice history)
+	initialInvoice: { type: String, default: "" },
 })
 
 const emit = defineEmits(["update:modelValue", "return-created", "after-leave"])
@@ -1015,6 +1017,9 @@ watch(
 		if (val) {
 			// Auto-load invoices when dialog opens
 			loadInvoicesResource.reload()
+			if (props.initialInvoice) {
+				checkValidityAndOpenModal(props.initialInvoice, true)
+			}
 		} else {
 			resetForm()
 		}

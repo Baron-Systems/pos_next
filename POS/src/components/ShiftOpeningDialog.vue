@@ -1,5 +1,5 @@
 <template>
-  <Dialog v-model="open" :options="{ title: __('Open POS Shift'), size: 'xl' }" @after-leave="$emit('after-leave')">
+  <Dialog v-model="open" :options="{ title: step === 3 ? __('ملخص الوردية') : __('Open POS Shift'), size: 'xl' }" @after-leave="$emit('after-leave')">
     <template #body-content>
       <div class="flex flex-col gap-6">
         <!-- Step 1: Select POS Profile -->
@@ -131,46 +131,112 @@
           </div>
         </div>
 
-        <!-- Step 3: Resume or Open New -->
-        <div v-if="step === 3" class="flex flex-col gap-4">
-          <div class="text-center">
-            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
-              <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+        <!-- Step 3: Open shift summary + Resume or Open New -->
+        <div v-if="step === 3" class="flex flex-col gap-4 text-start">
+          <!-- Shift info -->
+          <div v-if="existingShift" class="flex flex-wrap items-center justify-between gap-2 bg-gray-50 rounded-lg p-3 text-sm">
+            <div>
+              <div class="font-semibold text-gray-900">{{ existingShift.pos_profile?.name }}</div>
+              <div class="text-xs text-gray-500">{{ existingShift.pos_opening_shift?.name }}</div>
             </div>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">{{ __('Existing Shift Found') }}</h3>
-            <p class="text-sm text-gray-500 mb-6">
-              {{ __('You have an open shift. Would you like to resume it or close it and open a new one?') }}
-            </p>
+            <div class="text-end">
+              <div class="text-xs text-gray-500">{{ __('بداية الوردية') }}</div>
+              <div class="font-medium text-gray-900" dir="ltr">{{ formatDateTime(existingShift.pos_opening_shift?.period_start_date) }}</div>
+            </div>
+          </div>
 
-            <div v-if="existingShift" class="bg-gray-50 rounded-lg p-4 mb-6">
-              <div class="text-sm text-gray-600">
-                  <TranslatedHTML
-                    :tag="'p'"
-                    :inner="__('&lt;strong&gt;POS Profile:&lt;/strong&gt; {0}', [existingShift.pos_profile?.name])"
-                  />
-                  <div class="h-2"></div>
-                  <TranslatedHTML
-                    :tag="'p'"
-                    :inner="__('&lt;strong&gt;Opened:&lt;/strong&gt; {0}', [formatDateTime(existingShift.pos_opening_shift?.period_start_date)])"
-                  />
+          <div v-if="summaryResource.loading" class="text-center py-6">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+
+          <div v-else-if="summaryResource.error" class="rounded-md bg-red-50 p-3">
+            <p class="text-sm text-red-800">{{ __('تعذر تحميل ملخص الوردية') }}</p>
+          </div>
+
+          <template v-else-if="summary">
+            <!-- Blind closing: expected amounts are hidden by POS settings -->
+            <div v-if="hideExpectedAmount" class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+              {{ __('عرض المبالغ مخفي حسب إعدادات نقطة البيع') }}
+              <div class="mt-1 text-gray-900 font-medium">
+                {{ __('عدد الفواتير: {0} · عدد المرتجعات: {1}', [summary.sales_count, summary.returns_count]) }}
               </div>
             </div>
 
-            <div class="flex gap-3 justify-center">
-              <Button variant="solid" theme="blue" @click="resumeShift">
-                {{ __('Resume Shift') }}
-              </Button>
-              <Button
-                variant="subtle"
-                theme="gray"
-                @click="closeAndOpenNew"
-                :disabled="closingExistingShift"
-              >
-                {{ __('Close & Open New') }}
-              </Button>
+            <template v-else>
+              <!-- Cash in drawer (highlight) -->
+              <div class="rounded-xl border-2 border-green-300 bg-green-50 p-4 flex items-center justify-between gap-3">
+                <div>
+                  <div class="text-sm font-medium text-green-800">{{ __('النقد المتوقع في الصندوق') }}</div>
+                  <div class="text-xs text-green-700">{{ summary.cash_mode_of_payment }}</div>
+                </div>
+                <div class="text-2xl font-bold text-green-900" dir="ltr">{{ formatCurrency(expectedCash) }}</div>
+              </div>
+
+              <!-- Sales figures -->
+              <div class="grid grid-cols-2 gap-3">
+                <div class="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <div class="text-xs font-medium text-blue-700">{{ __('المبيعات') }}</div>
+                  <div class="text-lg font-bold text-blue-900" dir="ltr">{{ formatCurrency(summary.sales_total) }}</div>
+                  <div class="text-xs text-blue-600">{{ __('{0} فاتورة', [summary.sales_count]) }}</div>
+                </div>
+                <div class="rounded-lg border border-red-200 bg-red-50 p-3">
+                  <div class="text-xs font-medium text-red-700">{{ __('المرتجعات') }}</div>
+                  <div class="text-lg font-bold text-red-800" dir="ltr">{{ summary.returns_total ? '-' : '' }}{{ formatCurrency(summary.returns_total) }}</div>
+                  <div class="text-xs text-red-600">{{ __('{0} مرتجع', [summary.returns_count]) }}</div>
+                </div>
+                <div class="rounded-lg border border-gray-200 bg-white p-3">
+                  <div class="text-xs font-medium text-gray-600">{{ __('صافي المبيعات') }}</div>
+                  <div class="text-lg font-bold text-gray-900" dir="ltr">{{ formatCurrency(summary.grand_total) }}</div>
+                  <div class="text-xs text-gray-500">{{ __('المبيعات - المرتجعات') }}</div>
+                </div>
+                <div class="rounded-lg border border-gray-200 bg-white p-3">
+                  <div class="text-xs font-medium text-gray-600">{{ __('المبيعات النقدية') }}</div>
+                  <div class="text-lg font-bold text-gray-900" dir="ltr">{{ formatCurrency(summary.cash_sales_total) }}</div>
+                  <div class="text-xs text-gray-500">{{ __('بعد خصم الباقي') }}</div>
+                </div>
+                <div v-if="summary.total_expenses" class="col-span-2 rounded-lg border border-rose-200 bg-rose-50 p-3 flex items-center justify-between">
+                  <div class="text-xs font-medium text-rose-700">{{ __('مصاريف الوردية') }}</div>
+                  <div class="text-base font-bold text-rose-800" dir="ltr">-{{ formatCurrency(summary.total_expenses) }}</div>
+                </div>
+              </div>
+
+              <!-- Per payment method -->
+              <div v-if="summary.payment_reconciliation?.length" class="rounded-lg border border-gray-200 overflow-hidden">
+                <div class="grid grid-cols-3 gap-2 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600">
+                  <div>{{ __('طريقة الدفع') }}</div>
+                  <div class="text-end">{{ __('رصيد الافتتاح') }}</div>
+                  <div class="text-end">{{ __('المتوقع') }}</div>
+                </div>
+                <div
+                  v-for="pay in summary.payment_reconciliation"
+                  :key="pay.mode_of_payment"
+                  class="grid grid-cols-3 gap-2 px-3 py-2 text-sm border-t border-gray-100"
+                >
+                  <div class="text-gray-900 truncate">{{ pay.mode_of_payment }}</div>
+                  <div class="text-end text-gray-600" dir="ltr">{{ formatCurrency(pay.opening_amount) }}</div>
+                  <div class="text-end font-semibold text-gray-900" dir="ltr">{{ formatCurrency(pay.expected_amount) }}</div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Printed drafts are submitted (and counted) only at closing -->
+            <div v-if="summary.pending_printed_count > 0" class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              {{ __('يوجد {0} فاتورة مطبوعة غير مرحّلة، غير محسوبة في الأرقام أعلاه وسيتم ترحيلها عند إغلاق الوردية', [summary.pending_printed_count]) }}
             </div>
+          </template>
+
+          <div class="flex gap-3 justify-center pt-2">
+            <Button variant="solid" theme="blue" @click="resumeShift">
+              {{ __('Resume Shift') }}
+            </Button>
+            <Button
+              variant="subtle"
+              theme="gray"
+              @click="closeAndOpenNew"
+              :disabled="closingExistingShift"
+            >
+              {{ __('Close & Open New') }}
+            </Button>
           </div>
         </div>
       </div>
@@ -233,7 +299,7 @@ import { useShift } from "../composables/useShift"
 import { useFormatters } from "../composables/useFormatters"
 import ShiftClosingDialog from "./ShiftClosingDialog.vue"
 import ShiftPasswordDialog from "./ShiftPasswordDialog.vue"
-import TranslatedHTML from "./common/TranslatedHTML.vue"
+import { usePOSSettingsStore } from "@/stores/posSettings"
 
 const props = defineProps({
 	modelValue: Boolean,
@@ -248,7 +314,9 @@ const open = computed({
 
 const { createOpeningShift, getOpeningDialogData, checkOpeningShift } =
 	useShift()
-const { formatDateTime } = useFormatters()
+const { formatDateTime, formatCurrency } = useFormatters()
+const posSettingsStore = usePOSSettingsStore()
+const hideExpectedAmount = computed(() => posSettingsStore.hideExpectedAmount)
 
 const step = ref(1)
 const selectedProfile = ref(null)
@@ -273,6 +341,29 @@ const dialogDataResource = createResource({
 	url: "pos_next.api.shifts.get_opening_dialog_data",
 	auto: false,
 })
+
+// Read-only summary of the open shift (same figures as closing)
+const summaryResource = createResource({
+	url: "pos_next.api.shifts.get_shift_summary",
+	auto: false,
+})
+
+const summary = computed(() => summaryResource.data || null)
+
+const expectedCash = computed(() => {
+	const pay = summary.value?.payment_reconciliation?.find(
+		(p) => p.mode_of_payment === summary.value.cash_mode_of_payment,
+	)
+	return pay?.expected_amount ?? 0
+})
+
+function loadShiftSummary() {
+	const openingShift = existingShift.value?.pos_opening_shift?.name
+	if (!openingShift) return
+	summaryResource.submit({ opening_shift: openingShift }).catch((error) => {
+		console.error("Error loading shift summary:", error)
+	})
+}
 
 // Create shift resource
 const createShiftResource = createOpeningShift
@@ -334,6 +425,7 @@ async function initDialog() {
 		if (checkResult) {
 			existingShift.value = checkResult
 			step.value = 3
+			loadShiftSummary()
 		}
 	} catch (error) {
 		console.error("Error initializing shift dialog:", error)
@@ -348,6 +440,7 @@ function resetDialog() {
 	currencyOpeningBalances.value = {}
 	existingShift.value = null
 	profilesResource.reset()
+	summaryResource.reset()
 	dialogDataResource.reset()
 	createShiftResource.reset()
 }

@@ -17,7 +17,7 @@ export async function printInvoice(
 ) {
 	try {
 		if (!invoiceData || !invoiceData.name) {
-			throw new Error("Invalid invoice data")
+			throw new Error(__("Invalid invoice data"))
 		}
 
 		const doctype = invoiceData.doctype || "Sales Invoice"
@@ -504,7 +504,7 @@ export async function printInvoiceByName(
 		})
 
 		if (!invoiceDoc) {
-			throw new Error("Invoice not found")
+			throw new Error(__("Invoice not found"))
 		}
 
 		// If no print format specified and invoice has a POS Profile, fetch its print settings

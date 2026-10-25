@@ -2137,7 +2137,7 @@ def apply_offers(invoice_data, selected_offers=None):
             item.applied_promotional_schemes = []
 
         if not pricing_items:
-            return {"items": items}
+            return {"items": [dict(item) for item in prepared_items]}
 
         company_currency = frappe.get_cached_value(
             "Company", profile.company, "default_currency"
@@ -2217,7 +2217,7 @@ def apply_offers(invoice_data, selected_offers=None):
 
 
         if not pricing_results:
-            return {"items": items}
+            return {"items": [dict(item) for item in prepared_items]}
 
         raw_rule_names = set()
         for result in pricing_results:
@@ -2284,7 +2284,7 @@ def apply_offers(invoice_data, selected_offers=None):
             }
 
         if not rule_map:
-            return {"items": items}
+            return {"items": [dict(item) for item in prepared_items]}
 
         applied_rules = set()
         free_items = []

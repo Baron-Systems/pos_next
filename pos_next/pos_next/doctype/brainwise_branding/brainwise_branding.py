@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
 import hashlib
 import hmac
@@ -335,7 +336,7 @@ def verify_master_key(master_key_input):
 	"""
 	# Only System Managers can check
 	if "System Manager" not in frappe.get_roles():
-		frappe.throw("Only System Managers can verify the master key", frappe.PermissionError)
+		frappe.throw(_("Only System Managers can verify the master key"), frappe.PermissionError)
 
 	try:
 		# Parse the master key input
@@ -385,7 +386,7 @@ def generate_new_master_key():
 	WARNING: This should only be used during initial setup!
 	"""
 	if "System Manager" not in frappe.get_roles():
-		frappe.throw("Only System Managers can generate master keys", frappe.PermissionError)
+		frappe.throw(_("Only System Managers can generate master keys"), frappe.PermissionError)
 
 	# Generate new random key and phrase
 	new_key = secrets.token_urlsafe(32)

@@ -224,6 +224,53 @@ def get_closing_shift_data(opening_shift):
 
 
 @frappe.whitelist()
+def get_shift_summary(opening_shift):
+	"""Read-only summary of an open shift (same figures as closing, nothing is submitted)"""
+	from pos_next.pos_next.doctype.pos_closing_shift.pos_closing_shift import (
+		_get_cash_mode_of_payment,
+		make_closing_shift_from_opening,
+	)
+
+	opening_shift_doc = frappe.get_doc("POS Opening Shift", opening_shift)
+	if opening_shift_doc.user != frappe.session.user:
+		opening_shift_doc.check_permission("read")
+
+	opening_shift_json = json.dumps(opening_shift_doc.as_dict(), default=str)
+	data = make_closing_shift_from_opening(opening_shift_json, submit_printed=False)
+
+	# Printed drafts are submitted only at closing, so they are not in the figures yet
+	pending_printed_count = frappe.db.count(
+		"Sales Invoice",
+		{"posa_pos_opening_shift": opening_shift, "docstatus": 0, "posa_is_printed": 1},
+	)
+
+	return json.loads(json.dumps({
+		"pos_profile": data.get("pos_profile"),
+		"user": data.get("user"),
+		"period_start_date": data.get("period_start_date"),
+		"grand_total": flt(data.get("grand_total")),
+		"net_total": flt(data.get("net_total")),
+		"total_quantity": flt(data.get("total_quantity")),
+		"sales_total": flt(data.get("sales_total")),
+		"sales_count": data.get("sales_count") or 0,
+		"returns_total": flt(data.get("returns_total")),
+		"returns_count": data.get("returns_count") or 0,
+		"cash_sales_total": flt(data.get("cash_sales_total")),
+		"total_expenses": flt(data.get("total_expenses")),
+		"cash_mode_of_payment": _get_cash_mode_of_payment(data.get("pos_profile")),
+		"payment_reconciliation": [
+			{
+				"mode_of_payment": p.get("mode_of_payment"),
+				"opening_amount": flt(p.get("opening_amount")),
+				"expected_amount": flt(p.get("expected_amount")),
+			}
+			for p in data.get("payment_reconciliation", [])
+		],
+		"pending_printed_count": pending_printed_count,
+	}, default=str))
+
+
+@frappe.whitelist()
 def submit_closing_shift(closing_shift):
 	"""Submit closing shift"""
 	from pos_next.pos_next.doctype.pos_closing_shift.pos_closing_shift import submit_closing_shift as submit_shift

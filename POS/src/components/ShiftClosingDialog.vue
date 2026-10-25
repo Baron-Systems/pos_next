@@ -1008,13 +1008,32 @@
             v-if="!showSuccessReport"
             variant="solid"
             theme="blue"
-            @click="submitClosing"
+            @click="requestCloseConfirm"
             :loading="submitResource.loading"
             :disabled="!canSubmit"
           >
             {{ submitResource.loading ? __('Closing Shift...') : __('Close Shift') }}
           </Button>
         </div>
+      </div>
+    </template>
+  </Dialog>
+
+  <!-- Confirmation before closing the shift -->
+  <Dialog v-model="showCloseConfirm" :options="{ title: __('Confirm Shift Closing'), size: 'sm' }">
+    <template #body-content>
+      <p class="text-sm text-gray-700">
+        {{ __('Are you sure you want to close the shift? This action cannot be undone, and you will not be able to make sales until a new shift is opened.') }}
+      </p>
+    </template>
+    <template #actions>
+      <div class="flex justify-end gap-2 w-full">
+        <Button variant="subtle" @click="showCloseConfirm = false">
+          {{ __('Cancel') }}
+        </Button>
+        <Button variant="solid" theme="red" @click="confirmCloseShift">
+          {{ __('Yes, Close Shift') }}
+        </Button>
       </div>
     </template>
   </Dialog>
@@ -1131,7 +1150,7 @@ async function loadClosingData() {
 		}
 	} catch (error) {
 		console.error("Error loading closing data:", error)
-		errorMessage.value = 'Unable to load shift data. Please check your connection and try again.'
+		errorMessage.value = __('Unable to load shift data. Please check your connection and try again.')
 	}
 }
 
@@ -1183,6 +1202,18 @@ const canSubmit = computed(() => {
 	return paymentsOk && currenciesOk
 })
 
+const showCloseConfirm = ref(false)
+
+function requestCloseConfirm() {
+	if (!closingData.value || !canSubmit.value || submitResource.loading) return
+	showCloseConfirm.value = true
+}
+
+function confirmCloseShift() {
+	showCloseConfirm.value = false
+	submitClosing()
+}
+
 async function submitClosing() {
 	if (!closingData.value) return
 
@@ -1218,7 +1249,7 @@ async function submitClosing() {
 		}
 	} catch (error) {
 		console.error("Error submitting closing shift:", error)
-		errorMessage.value = 'Failed to close shift. Please verify all amounts and try again.'
+		errorMessage.value = __('Failed to close shift. Please verify all amounts and try again.')
 	}
 }
 

@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, flt
 
@@ -77,13 +78,13 @@ class POSSettings(Document):
 		# Guard against None values and validate discount percentage
 		max_discount = flt(self.max_discount_allowed)
 		if max_discount < 0 or max_discount > 100:
-			frappe.throw("Max Discount Allowed must be between 0 and 100")
+			frappe.throw(_("Max Discount Allowed must be between 0 and 100"))
 
 		# Guard against None values and validate search limit
 		if self.use_limit_search:
 			search_limit = cint(self.search_limit)
 			if search_limit <= 0:
-				frappe.throw("Search Limit must be greater than 0")
+				frappe.throw(_("Search Limit must be greater than 0"))
 
 		# Validate currency exchange settings
 		self.validate_currency_setup()
@@ -97,11 +98,11 @@ class POSSettings(Document):
 		for row in self.currency_setup or []:
 			# Check currency is selected
 			if not row.currency:
-				frappe.throw(f"Row #{row.idx}: Currency is required")
+				frappe.throw(_("Row #{0}: Currency is required").format(row.idx))
 			if not row.cash_account:
-				frappe.throw(f"Row #{row.idx}: Cash Account is required")
+				frappe.throw(_("Row #{0}: Cash Account is required").format(row.idx))
 			if not row.company:
-				frappe.throw(f"Row #{row.idx}: Company is required")
+				frappe.throw(_("Row #{0}: Company is required").format(row.idx))
 
 			# Check for duplicate currency per company
 			key = f"{row.currency}-{row.company}"
@@ -127,7 +128,7 @@ class POSSettings(Document):
 
 		# Require at least 2 currencies
 		if len(currencies) < 2:
-			frappe.throw("At least 2 currencies must be configured for currency exchange")
+			frappe.throw(_("At least 2 currencies must be configured for currency exchange"))
 
 	def on_update(self):
 		"""Sync allow_negative_stock with Stock Settings"""

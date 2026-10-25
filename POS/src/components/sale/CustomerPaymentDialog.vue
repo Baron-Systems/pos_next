@@ -193,6 +193,7 @@ class="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
 <label for="includePortal" class="text-sm text-gray-700 cursor-pointer">{{ __('تضمين معلومات بوابة العميل') }}</label>
 </div>
 <div v-if="includePortalInfo" class="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-1 text-sm">
+<p class="text-blue-700">{{ PORTAL_HINT }}</p>
 <p class="text-blue-800"><span class="font-semibold">{{ __('رابط البوابة:') }}</span> {{ portalUrl }}</p>
 <p class="text-blue-800"><span class="font-semibold">{{ __('اسم المستخدم:') }}</span> {{ localCustomer?.customer_name || localCustomer?.name }}</p>
 <p class="text-blue-800"><span class="font-semibold">{{ __('رقم العميل:') }}</span> {{ localCustomer?.id_no || '-' }}</p>
@@ -376,6 +377,7 @@ const tempPhoneInput = ref("")
 const countryCode = ref("+970")
 const customMessageText = ref("")
 const includePortalInfo = ref(true)
+const PORTAL_HINT = 'يمكنك الدخول على الرابط التالي باستخدام اسم المستخدم ورقم العميل للاطلاع على كشف حسابك وفواتيرك ودفعاتك في أي وقت.'
 const updatingPhone = ref(false)
 
 const portalUrl = computed(() => {
@@ -462,6 +464,7 @@ async function sendWhatsAppMessage() {
     const username = localCustomer.value?.customer_name || localCustomer.value?.name || ''
     const customerId = localCustomer.value?.id_no || '-'
     messageText += `\n\nمعلومات بوابة العميل:\n`
+    messageText += `${PORTAL_HINT}\n`
     messageText += `رابط الدخول: ${portalLink}\n`
     messageText += `اسم المستخدم: ${username}\n`
     messageText += `رقم العميل: ${customerId}`

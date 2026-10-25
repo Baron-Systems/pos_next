@@ -21,7 +21,7 @@
 										<div class="mb-6 flex items-center justify-between">
 											<div class="flex items-center space-x-2">
 												<h3 class="text-2xl font-semibold leading-6 text-gray-900">
-													{{ __('Edit Item Details') }}
+													{{ __('تعديل تفاصيل المنتج') }}
 												</h3>
 											</div>
 											<button
@@ -71,71 +71,89 @@
 												</div>
 											</div>
 
-											<!-- Two Column Layout for Quantity, UOM, Rate, Warehouse -->
+											<!-- Unit & Warehouse -->
 											<div class="grid grid-cols-2 gap-4">
-												<!-- Left Column: Quantity and Rate -->
-												<div class="flex flex-col gap-4">
-													<!-- Quantity Control -->
-													<div>
-														<label class="block text-sm font-medium text-gray-700 mb-2 text-start">{{ __('Quantity') }}</label>
-														<!-- For serial items, quantity is read-only (controlled by serial list) -->
-														<div v-if="localItem?.has_serial_no && localSerials.length > 0" class="w-full h-7 border border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center">
-															<span class="text-sm font-semibold text-gray-600">{{ localSerials.length }}</span>
-														</div>
-														<!-- For non-serial items, show quantity controls -->
-														<div v-else class="w-full h-7 border border-gray-300 rounded-lg bg-white flex items-center overflow-hidden">
-															<button
-																type="button"
-																@click="decrementQuantity"
-																class="w-7 h-7 min-w-7 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 font-bold text-base transition-colors flex items-center justify-center border-e border-gray-300"
-															>
-																−
-															</button>
-															<div class="flex-1 h-full flex items-center justify-center px-2">
-																<input
-																	v-model.number="localQuantity"
-																	type="number"
-																	step="any"
-																	inputmode="decimal"
-																	class="w-full text-center border-0 text-sm font-semibold focus:outline-none focus:ring-0 bg-transparent"
-										:class="localQuantity < 0 ? 'text-red-600' : ''"
-																	@input="handleQuantityInput"
-																	@blur="handleQuantityBlur"
-																	@keydown.enter="$event.target.blur()"
-																/>
-															</div>
-															<button
-																type="button"
-																@click="incrementQuantity"
-																class="w-7 h-7 min-w-7 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 font-bold text-base transition-colors flex items-center justify-center border-s border-gray-300"
-															>
-																+
-															</button>
-														</div>
-													</div>
+												<div>
+													<label class="block text-sm font-medium text-gray-700 mb-2 text-start">{{ __('وحدة القياس') }}</label>
+													<SelectInput v-model="localUom" :options="uomOptions" @change="handleUomChange" />
+												</div>
+												<div>
+													<label class="block text-sm font-medium text-gray-700 mb-2 text-start">{{ __('المستودع') }}</label>
+													<SelectInput v-model="localWarehouse" :options="warehouseOptions" @change="handleWarehouseChange" />
+												</div>
+											</div>
 
-													<!-- Rate -->
-													<div>
-														<label class="block text-sm font-medium text-gray-700 mb-2 text-start">{{ __('Rate') }}</label>
-														<div class="relative h-7">
-															<span class="absolute inset-y-0 start-0 ps-3 flex items-center text-gray-500 text-sm font-medium">
-																{{ currencySymbol }}
-															</span>
+											<!-- Quantity & Unit Price -->
+											<div class="grid grid-cols-2 gap-4">
+												<!-- Quantity Control -->
+												<div>
+													<label class="block text-sm font-medium text-gray-700 mb-2 text-start">{{ __('الكمية') }}</label>
+													<!-- For serial items, quantity is read-only (controlled by serial list) -->
+													<div v-if="isSerialQuantity" class="w-full h-7 border border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center">
+														<span class="text-sm font-semibold text-gray-600">{{ localSerials.length }}</span>
+													</div>
+													<!-- For non-serial items, show quantity controls -->
+													<div v-else class="w-full h-7 border border-gray-300 rounded-lg bg-white flex items-center overflow-hidden">
+														<button
+															type="button"
+															@click="decrementQuantity"
+															class="w-7 h-7 min-w-7 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 font-bold text-base transition-colors flex items-center justify-center border-e border-gray-300"
+														>
+															−
+														</button>
+														<div class="flex-1 h-full flex items-center justify-center px-2">
 															<input
-																v-model.number="localRate"
+																v-model.number="localQuantity"
 																type="number"
-																min="0"
-																step="0.01"
-																class="w-full h-7 border border-gray-300 rounded-lg ps-12 pe-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-																	@input="handleRateInput"
-																	@blur="handleRateBlur"
+																@focus="selectAll"
+																step="any"
+																inputmode="decimal"
+																class="w-full text-center border-0 text-sm font-semibold focus:outline-none focus:ring-0 bg-transparent"
+																:class="localQuantity < 0 ? 'text-red-600' : ''"
+																@input="handleQuantityInput"
+																@blur="handleQuantityBlur"
+																@keydown.enter="$event.target.blur()"
 															/>
 														</div>
+														<button
+															type="button"
+															@click="incrementQuantity"
+															class="w-7 h-7 min-w-7 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 font-bold text-base transition-colors flex items-center justify-center border-s border-gray-300"
+														>
+															+
+														</button>
 													</div>
+												</div>
 
-													<!-- Target Amount -->
+												<!-- Unit Price -->
+												<div>
+													<label class="block text-sm font-medium text-gray-700 mb-2 text-start">{{ __('سعر الوحدة') }}</label>
+													<div class="relative h-7">
+														<span class="absolute inset-y-0 start-0 ps-3 flex items-center text-gray-500 text-sm font-medium">
+															{{ currencySymbol }}
+														</span>
+														<input
+															v-model.number="localRate"
+															type="number"
+															@focus="selectAll"
+															min="0"
+															step="0.01"
+															class="w-full h-7 border border-gray-300 rounded-lg ps-12 pe-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+															@input="handleRateInput"
+															@blur="handleRateBlur"
+															@keydown.enter="$event.target.blur()"
+														/>
+													</div>
+												</div>
+											</div>
+
+											<!-- Target Amount: line amount (qty × unit price, before item discount) -->
+											<div class="border-t border-gray-200 pt-4">
+												<label class="block text-sm font-medium text-gray-700 mb-3 text-start">{{ __('المبلغ المستهدف') }}</label>
+												<div class="grid grid-cols-2 gap-4">
+													<!-- Target amount → calculates quantity (price stays) -->
 													<div>
-														<label class="block text-sm font-medium text-gray-700 mb-2 text-start">{{ __('المبلغ المستهدف') }}</label>
+														<label class="block text-xs text-gray-600 mb-1 text-start">{{ __('يحسب الكمية') }}</label>
 														<div class="relative h-7">
 															<span class="absolute inset-y-0 start-0 ps-3 flex items-center text-gray-500 text-sm font-medium">
 																{{ currencySymbol }}
@@ -143,51 +161,60 @@
 															<input
 																v-model.number="localTargetAmount"
 																type="number"
+																@focus="selectAll"
 																min="0"
 																step="0.01"
-																class="w-full h-7 border border-gray-300 rounded-lg ps-12 pe-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+																:disabled="isSerialQuantity || !(localRate > 0)"
+																class="w-full h-7 border border-gray-300 rounded-lg ps-12 pe-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
 																@input="handleTargetAmountInput"
 																@blur="handleTargetAmountBlur"
 																@keydown.enter="$event.target.blur()"
 															/>
 														</div>
 													</div>
-												</div>
 
-												<!-- Right Column: UOM and Warehouse -->
-												<div class="flex flex-col gap-4">
-													<!-- UOM Selector -->
+													<!-- Target amount → calculates unit price (quantity stays) -->
 													<div>
-														<label class="block text-sm font-medium text-gray-700 mb-2 text-start">{{ __('UOM') }}</label>
-														<SelectInput v-model="localUom" :options="uomOptions" @change="handleUomChange" />
-													</div>
-
-													<!-- Warehouse Selector -->
-													<div>
-														<label class="block text-sm font-medium text-gray-700 mb-2 text-start">{{ __('Warehouse') }}</label>
-														<SelectInput v-model="localWarehouse" :options="warehouseOptions" @change="handleWarehouseChange" />
-													</div>
-
-													<!-- Item Evaluated Price -->
-													<div>
-														<label class="block text-sm font-medium text-gray-700 mb-2 text-start">{{ __('سعر تقييم الصنف') }}</label>
+														<label class="block text-xs text-gray-600 mb-1 text-start">{{ __('يحسب السعر') }}</label>
 														<div class="relative h-7">
 															<span class="absolute inset-y-0 start-0 ps-3 flex items-center text-gray-500 text-sm font-medium">
 																{{ currencySymbol }}
 															</span>
-															<div class="w-full h-7 border border-gray-200 rounded-lg ps-12 pe-3 text-sm font-semibold bg-gray-50 flex items-center text-gray-700">
-																{{ formatCurrency(itemCostRate) }}
-															</div>
+															<input
+																v-model.number="localTargetPriceAmount"
+																type="number"
+																@focus="selectAll"
+																min="0"
+																step="0.01"
+																:disabled="!(localQuantity > 0)"
+																class="w-full h-7 border border-gray-300 rounded-lg ps-12 pe-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+																@input="handleTargetPriceInput"
+																@blur="handleTargetPriceBlur"
+																@keydown.enter="$event.target.blur()"
+															/>
 														</div>
 													</div>
 												</div>
+												<!-- Price is rounded to 2 decimals, so qty × price may not hit the target exactly -->
+												<p v-if="targetRoundingDiff !== 0" class="mt-2 text-xs text-amber-600 text-start">
+													{{ __('المبلغ الفعلي بعد التقريب: {0}', [formatCurrency(calculatedSubtotal)]) }}
+												</p>
+												<p v-if="calculatedDiscount > 0" class="mt-2 text-xs text-gray-500 text-start">
+													{{ __('المبلغ المستهدف قبل خصم الصنف') }}
+												</p>
+											</div>
+
+											<!-- Unit Cost (read-only, per selected UOM) -->
+											<div class="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-2">
+												<span class="text-gray-600">{{ __('تكلفة الوحدة') }} / {{ localUom || localItem.stock_uom }}</span>
+												<span class="font-semibold text-gray-700">{{ formatCurrency(unitCostForUom) }}</span>
 											</div>
 
 											<!-- Serial Numbers Section (only for serial items) -->
-											<div v-if="localItem?.has_serial_no && localSerials.length > 0" class="border-t border-gray-200 pt-4">
+											<div v-if="isSerialQuantity" class="border-t border-gray-200 pt-4">
 												<div class="flex items-center justify-between mb-3">
 													<label class="block text-sm font-medium text-gray-700 text-start">
-														{{ __('Serial Numbers') }}
+														{{ __('الأرقام التسلسلية') }}
 														<span class="ms-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
 															{{ localSerials.length }}
 														</span>
@@ -210,7 +237,7 @@
 															@click="removeSerial(serial)"
 															:disabled="localSerials.length <= 1"
 															class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-															:title="localSerials.length <= 1 ? __('Cannot remove last serial') : __('Remove serial')"
+															:title="localSerials.length <= 1 ? __('لا يمكن حذف آخر رقم تسلسلي') : __('حذف الرقم التسلسلي')"
 														>
 															<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -222,20 +249,21 @@
 
 											<!-- Item Discount Section (only if allowed by POS Profile) -->
 											<div v-if="settingsStore.allowItemDiscount" class="border-t border-gray-200 pt-4">
-												<label class="block text-sm font-medium text-gray-700 mb-3 text-start">{{ __('Item Discount') }}</label>
+												<label class="block text-sm font-medium text-gray-700 mb-3 text-start">{{ __('خصم الصنف') }}</label>
 												<div class="grid grid-cols-2 gap-3">
 													<!-- Discount Type -->
 													<div>
-														<label class="block text-xs text-gray-600 mb-1 text-start">{{ __('Discount Type') }}</label>
+														<label class="block text-xs text-gray-600 mb-1 text-start">{{ __('نوع الخصم') }}</label>
 														<SelectInput v-model="discountType" :options="discountTypeOptions" @change="handleDiscountTypeChange" />
 													</div>
 													<!-- Discount Value -->
 													<div>
-														<label class="block text-xs text-gray-600 mb-1 text-start">{{ discountType === 'percentage' ? __('Percentage') : __('Amount') }}</label>
+														<label class="block text-xs text-gray-600 mb-1 text-start">{{ discountType === 'percentage' ? __('النسبة') : __('المبلغ') }}</label>
 														<div class="relative">
 															<input
 																v-model.number="discountValue"
 																type="number"
+																@focus="selectAll"
 																min="0"
 																:max="discountType === 'percentage' ? 100 : undefined"
 																step="0.01"
@@ -253,15 +281,15 @@
 											<!-- Totals -->
 											<div class="bg-gray-50 rounded-lg p-4 flex flex-col gap-2">
 												<div class="flex items-center justify-between text-sm">
-													<span class="text-gray-600">{{ __('Subtotal:') }}</span>
+													<span class="text-gray-600">{{ __('المجموع الفرعي:') }}</span>
 													<span class="font-semibold text-gray-900">{{ formatCurrency(calculatedSubtotal) }}</span>
 												</div>
 												<div v-if="calculatedDiscount > 0" class="flex items-center justify-between text-sm text-red-600">
-													<span>{{ __('Discount:') }}</span>
+													<span>{{ __('الخصم:') }}</span>
 													<span class="font-semibold">-{{ formatCurrency(calculatedDiscount) }}</span>
 												</div>
 												<div class="flex items-center justify-between pt-2 border-t border-gray-200">
-													<span class="text-base font-bold text-gray-900">{{ __('Total:') }}</span>
+													<span class="text-base font-bold text-gray-900">{{ __('الإجمالي:') }}</span>
 													<span class="text-lg font-bold text-blue-600">{{ formatCurrency(calculatedTotal) }}</span>
 												</div>
 											</div>
@@ -273,15 +301,15 @@
 							<!-- Actions - matching frappe-ui Dialog style -->
 							<div class="px-4 pb-7 pt-4 sm:px-6">
 								<div class="flex items-center justify-end gap-2">
-									<Button variant="subtle" @click="cancel">{{ __('Cancel') }}</Button>
+									<Button variant="subtle" @click="cancel">{{ __('إلغاء') }}</Button>
 									<Button
 										variant="solid"
 										@click="updateItem"
 										:disabled="!hasStock || isCheckingStock"
 									>
-										<span v-if="isCheckingStock">{{ __('Checking Stock...') }}</span>
-										<span v-else-if="!hasStock">{{ __('No Stock Available') }}</span>
-										<span v-else>{{ __('Update Item') }}</span>
+										<span v-if="isCheckingStock">{{ __('جاري التحقق من المخزون...') }}</span>
+										<span v-else-if="!hasStock">{{ __('لا يوجد مخزون') }}</span>
+										<span v-else>{{ __('تحديث الصنف') }}</span>
 									</Button>
 								</div>
 							</div>
@@ -342,7 +370,8 @@ const isCheckingStock = ref(false)
 const localSerials = ref([]) // List of serial numbers for this item
 const removedSerials = ref([]) // Track serials removed during this edit session
 const originalSerials = ref([]) // Original serials when dialog opened
-const localTargetAmount = ref(0)
+const localTargetAmount = ref(0) // Target line amount → calculates quantity
+const localTargetPriceAmount = ref(0) // Target line amount → calculates unit price
 const itemCostRate = ref(0)
 const previousUom = ref("")
 const previousConversionFactor = ref(1)
@@ -360,6 +389,15 @@ const availableUoms = computed(() => {
 })
 
 const currencySymbol = computed(() => getCurrencySymbol(props.currency))
+
+// Serial items: quantity is controlled by the serial list
+const isSerialQuantity = computed(() => Boolean(localItem.value?.has_serial_no && localSerials.value.length > 0))
+
+// Cost rate comes from the Item master (per stock UOM); scale it to the selected UOM
+const unitCostForUom = computed(() => round2(itemCostRate.value * getUomConversionFactor(localUom.value)))
+
+// Difference between the entered target amount and the real line amount (qty × price)
+const targetRoundingDiff = ref(0)
 
 // Options for SelectInput components
 const uomOptions = computed(() => {
@@ -387,12 +425,12 @@ const warehouseOptions = computed(() => {
 			label: w.warehouse || w.name
 		}))
 	}
-	return [{ value: localWarehouse.value, label: localWarehouse.value || __('Default') }]
+	return [{ value: localWarehouse.value, label: localWarehouse.value || __('افتراضي') }]
 })
 
 const discountTypeOptions = computed(() => [
-	{ value: 'percentage', label: __('Percentage (%)') },
-	{ value: 'amount', label: __('Amount') }
+	{ value: 'percentage', label: __('نسبة (%)') },
+	{ value: 'amount', label: __('المبلغ') }
 ])
 
 const itemRateForUomResource = createResource({
@@ -411,7 +449,6 @@ watch(
 			previousUom.value = localUom.value
 			previousConversionFactor.value = newItem.conversion_factor || getUomConversionFactor(localUom.value)
 			localRate.value = newItem.rate || 0
-			localTargetAmount.value = round2((newItem.quantity || 1) * (newItem.rate || newItem.price_list_rate || 0))
 			localWarehouse.value =
 				newItem.warehouse || props.warehouses[0]?.name || ""
 
@@ -454,6 +491,7 @@ watch(
 			isCheckingStock.value = false
 
 			calculateTotals()
+			syncTargetAmounts()
 		}
 	},
 	{ immediate: true },
@@ -499,6 +537,7 @@ function incrementQuantity() {
 	const step = getSmartStep(localQuantity.value)
 	localQuantity.value = Math.round((localQuantity.value + step) * 10000) / 10000
 	calculateTotals()
+	syncTargetAmounts()
 }
 
 function decrementQuantity() {
@@ -506,6 +545,7 @@ function decrementQuantity() {
 	const newQty = Math.round((localQuantity.value - step) * 10000) / 10000
 	localQuantity.value = newQty
 	calculateTotals()
+	syncTargetAmounts()
 }
 
 function handleQuantityInput() {
@@ -513,7 +553,7 @@ function handleQuantityInput() {
 	// Don't validate or reset - let user type freely
 	if (!isNaN(localQuantity.value)) {
 		calculateTotals()
-		localTargetAmount.value = round2(localQuantity.value * localRate.value)
+		syncTargetAmounts()
 	}
 }
 
@@ -526,14 +566,14 @@ function handleQuantityBlur() {
 		localQuantity.value = Math.round(localQuantity.value * 10000) / 10000
 	}
 	calculateTotals()
-	localTargetAmount.value = round2(localQuantity.value * localRate.value)
+	syncTargetAmounts()
 }
 
 function handleRateInput() {
 	// Recalculate totals when rate changes during typing
 	if (localRate.value >= 0 && !isNaN(localRate.value)) {
 		calculateTotals()
-		localTargetAmount.value = round2(localQuantity.value * localRate.value)
+		syncTargetAmounts()
 	}
 }
 
@@ -544,27 +584,69 @@ function handleRateBlur() {
 		localRate.value = Math.round(localRate.value * 100) / 100
 	}
 	calculateTotals()
-	localTargetAmount.value = round2(localQuantity.value * localRate.value)
+	syncTargetAmounts()
+}
+
+/**
+ * Both target fields show the line amount (qty × unit price, before item discount).
+ * Re-sync them from the real values after qty / price change.
+ */
+function syncTargetAmounts() {
+	const lineAmount = round2(localQuantity.value * localRate.value)
+	localTargetAmount.value = lineAmount
+	localTargetPriceAmount.value = lineAmount
+	targetRoundingDiff.value = 0
+}
+
+function isValidTarget(value) {
+	return typeof value === "number" && !isNaN(value) && value >= 0
+}
+
+// Rounding may stop qty × price from hitting the target exactly; keep the gap to warn the user
+function updateTargetRoundingDiff(target) {
+	targetRoundingDiff.value = round2(round2(localQuantity.value * localRate.value) - target)
 }
 
 function handleTargetAmountInput() {
-	// When target amount changes, auto-calculate quantity = amount / rate
-	if (localTargetAmount.value >= 0 && !isNaN(localTargetAmount.value) && localRate.value > 0) {
-		localQuantity.value = Math.round((localTargetAmount.value / localRate.value) * 10000) / 10000
-		calculateTotals()
-	}
+	// Target amount → quantity = amount / price (price stays)
+	if (isSerialQuantity.value || !isValidTarget(localTargetAmount.value) || !(localRate.value > 0)) return
+	localQuantity.value = Math.round((localTargetAmount.value / localRate.value) * 10000) / 10000
+	calculateTotals()
+	localTargetPriceAmount.value = round2(localQuantity.value * localRate.value)
+	updateTargetRoundingDiff(localTargetAmount.value)
 }
 
 function handleTargetAmountBlur() {
-	if (!localTargetAmount.value || localTargetAmount.value < 0 || isNaN(localTargetAmount.value)) {
-		localTargetAmount.value = round2(localQuantity.value * localRate.value)
-	} else {
-		localTargetAmount.value = Math.round(localTargetAmount.value * 100) / 100
-		if (localRate.value > 0) {
-			localQuantity.value = Math.round((localTargetAmount.value / localRate.value) * 10000) / 10000
-		}
+	if (isSerialQuantity.value || !localTargetAmount.value || !isValidTarget(localTargetAmount.value) || !(localRate.value > 0)) {
+		syncTargetAmounts()
+		return
 	}
+	const target = round2(localTargetAmount.value)
+	localQuantity.value = Math.round((target / localRate.value) * 10000) / 10000
 	calculateTotals()
+	syncTargetAmounts()
+	updateTargetRoundingDiff(target)
+}
+
+function handleTargetPriceInput() {
+	// Target amount → unit price = amount / quantity (quantity stays); applies to this invoice only
+	if (!isValidTarget(localTargetPriceAmount.value) || !(localQuantity.value > 0)) return
+	localRate.value = round2(localTargetPriceAmount.value / localQuantity.value)
+	calculateTotals()
+	localTargetAmount.value = round2(localQuantity.value * localRate.value)
+	updateTargetRoundingDiff(localTargetPriceAmount.value)
+}
+
+function handleTargetPriceBlur() {
+	if (!isValidTarget(localTargetPriceAmount.value) || !(localQuantity.value > 0)) {
+		syncTargetAmounts()
+		return
+	}
+	const target = round2(localTargetPriceAmount.value)
+	localRate.value = round2(target / localQuantity.value)
+	calculateTotals()
+	syncTargetAmounts()
+	updateTargetRoundingDiff(target)
 }
 
 async function handleUomChange() {
@@ -609,7 +691,7 @@ async function handleUomChange() {
 	previousConversionFactor.value = newCF
 
 	calculateTotals()
-	localTargetAmount.value = round2(localQuantity.value * localRate.value)
+	syncTargetAmounts()
 }
 
 async function handleWarehouseChange() {
@@ -626,13 +708,13 @@ async function handleWarehouseChange() {
 		if (availableStock === 0) {
 			hasStock.value = false
 			showError(
-				__('"{0}" is not available in warehouse "{1}". Please select another warehouse.',
+				__('"{0}" غير متوفر في المستودع "{1}". الرجاء اختيار مستودع آخر.',
 				[localItem.value.item_name, localWarehouse.value])
 			)
 		} else if (availableStock < localQuantity.value) {
 			hasStock.value = false
 			showWarning(
-				__('Only {0} units of "{1}" available in "{2}". Current quantity: {3}', [
+				__('متوفر فقط {0} من "{1}" في "{2}". الكمية الحالية: {3}', [
 					availableStock,
 					localItem.value.item_name,
 					localWarehouse.value,
@@ -642,7 +724,7 @@ async function handleWarehouseChange() {
 		} else {
 			hasStock.value = true
 			showSuccess(
-				__('{0} units available in "{1}"', [availableStock, localWarehouse.value])
+				__('متوفر {0} في "{1}"', [availableStock, localWarehouse.value])
 			)
 		}
 	} catch (error) {
@@ -696,6 +778,7 @@ function removeSerial(serialNo) {
 		// Update quantity to match serial count
 		localQuantity.value = localSerials.value.length
 		calculateTotals()
+		syncTargetAmounts()
 	}
 }
 
@@ -719,6 +802,13 @@ async function fetchItemCostRate(itemCode) {
 		// Silently fail - cost rate is display-only
 		console.warn('Failed to fetch item cost rate:', e)
 	}
+}
+
+// Select the whole value on focus so typing replaces it
+// (deferred: some browsers clear the selection on the mouseup that follows focus)
+function selectAll(event) {
+	const input = event.target
+	setTimeout(() => input.select(), 0)
 }
 
 function formatCurrency(amount) {

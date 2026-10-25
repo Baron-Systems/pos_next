@@ -1,6 +1,18 @@
 <template>
-	<!-- Icon-Only Sidebar - Hidden on Mobile, Visible on Desktop -->
-	<div class="hidden lg:flex w-16 flex-shrink-0 bg-white border-e border-gray-200 flex-col items-center py-4 flex flex-col gap-2">
+	<!-- Mobile drawer backdrop -->
+	<div
+		v-if="mobileOpen"
+		class="lg:hidden absolute inset-0 bg-black/30 z-[140]"
+		@click="emit('close')"
+	></div>
+
+	<!-- Icon-Only Sidebar - Always visible on desktop, drawer on mobile (toggled from header) -->
+	<div
+		:class="[
+			'w-16 flex-shrink-0 bg-white border-e border-gray-200 flex-col items-center py-4 gap-2 lg:flex lg:static lg:shadow-none lg:overflow-visible',
+			mobileOpen ? 'flex absolute inset-y-0 start-0 z-[150] shadow-xl overflow-y-auto' : 'hidden'
+		]"
+	>
 		<!-- Promotions -->
 		<button
 			@click="handleMenuClick('promotions')"
@@ -225,8 +237,9 @@ const props = defineProps({
 	showCurrencyExchange: { type: Boolean, default: false },
 	hasMultiplePaymentMethods: { type: Boolean, default: false },
 	cartOnly: { type: Boolean, default: false },
+	mobileOpen: { type: Boolean, default: false },
 })
-const emit = defineEmits(["menu-clicked", "toggle-cart-only"])
+const emit = defineEmits(["menu-clicked", "toggle-cart-only", "close"])
 
 const activeMenu = ref("")
 

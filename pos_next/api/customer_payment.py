@@ -360,6 +360,12 @@ def create_customer_payment(customer, company, amount, mode_of_payment="Cash", p
     if discount_amount > 0 and payment_type == "Receive":
         total_allocated = sum(flt(ref.allocated_amount) for ref in pe.get("references", []))
         applied_discount = min(discount_amount, max(0, total_allocated - amount))
+        # Never drop the discount silently: it can only be booked against
+        # open invoices that cover amount + discount
+        if applied_discount < discount_amount - 0.005:
+            frappe.throw(_(
+                "Cash discount cannot be applied in full. Maximum allowed discount is {0} because open invoices do not cover the payment amount plus the discount."
+            ).format(flt(applied_discount, 2)))
         if applied_discount > 0:
             pe.append("deductions", {
                 "account": discount_account,

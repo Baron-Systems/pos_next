@@ -113,7 +113,7 @@ export const usePOSSyncStore = defineStore("posSync", () => {
 	 */
 	async function syncPending() {
 		if (isOffline.value) {
-			throw new Error("Cannot sync while offline")
+			throw new Error(__("Cannot sync while offline"))
 		}
 
 		isSyncing.value = true

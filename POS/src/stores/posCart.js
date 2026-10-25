@@ -143,6 +143,10 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	// Generation counter to track cart changes and invalidate stale operations
 	let cartGeneration = 0
 
+	// Set when an apply_offers response no longer matches the cart (cart changed
+	// while the request was in flight). The response is discarded and re-run.
+	let lastOfferResponseStale = false
+
 	// Async queue for sequential offer processing
 	const offerQueue = createAsyncQueue()
 
@@ -373,6 +377,30 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	 */
 	function applyDiscountsFromServer(serverItems) {
 		if (!Array.isArray(serverItems)) return false
+
+		// Server items are matched to cart items by index. If the cart was
+		// reordered/changed while the request was in flight (e.g. scanning moves
+		// an item to the top), indexes no longer line up and discounts would land
+		// on the wrong items. Discard the stale response; a re-run will follow.
+		const isAligned =
+			serverItems.length === 0 ||
+			(serverItems.length === invoiceItems.value.length &&
+			invoiceItems.value.every((item, index) => {
+				const serverItem = serverItems[index] || {}
+				return (
+					serverItem.item_code === item.item_code &&
+					(Number.parseFloat(serverItem.qty) || 0) === (Number.parseFloat(item.quantity) || 0) &&
+					(serverItem.uom || '') === (item.uom || '')
+				)
+			}))
+
+		if (!isAligned) {
+			console.warn("[applyDiscountsFromServer] Stale offer response discarded (cart changed during request)")
+			lastOfferResponseStale = true
+			offerProcessingState.value.lastCartHash = ''
+			debouncedProcessOffers()
+			return false
+		}
 
 		console.group("[applyDiscountsFromServer] input")
 		__diagnosticLogItems("serverItems", serverItems)
@@ -897,6 +925,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 					parseOfferResponse(response)
 
 				applyDiscountsFromServer(responseItems)
+				if (lastOfferResponseStale) return false
 				processFreeItems(freeItems)
 				filterActiveOffers(appliedRules)
 
@@ -984,6 +1013,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 				parseOfferResponse(response)
 
 			applyDiscountsFromServer(responseItems)
+			if (lastOfferResponseStale) return
 			processFreeItems(freeItems)
 			filterActiveOffers(appliedRules)
 
@@ -1466,7 +1496,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 			console.log('[updateItemDetails] Called with itemCode:', itemCode, 'updates:', updates, 'currentUom:', currentUom)
 			const cartItem = findCartItem(itemCode, currentUom)
 			if (!cartItem) {
-				throw new Error("Item not found in cart")
+				throw new Error(__("Item not found in cart"))
 			}
 			console.log('[updateItemDetails] Found cartItem:', cartItem.item_name, 'current rate:', cartItem.rate, 'price_list_rate:', cartItem.price_list_rate)
 
@@ -1615,6 +1645,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 		// CRITICAL: Always reset suppression flag FIRST, before any early returns
 		// This ensures the flag never gets stuck in a true state
 		suppressOfferReapply.value = false
+		lastOfferResponseStale = false
 
 		// Check cancellation early
 		if (signal?.aborted) return
@@ -1687,7 +1718,12 @@ export const usePOSCartStore = defineStore("posCart", () => {
 		}
 
 		// Auto-apply eligible offers (always check for new eligible offers)
-		await autoApplyEligibleOffers(currentProfile, signal)
+		if (!lastOfferResponseStale) {
+			await autoApplyEligibleOffers(currentProfile, signal)
+		}
+
+		// Stale response was discarded - leave the hash cleared so it re-runs
+		if (lastOfferResponseStale) return
 
 		// Update last processed hash on success
 		offerProcessingState.value.lastCartHash = generateCartHash()
