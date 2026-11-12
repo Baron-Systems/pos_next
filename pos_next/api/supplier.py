@@ -137,10 +137,12 @@ def create_supplier_payment(supplier, company, amount, mode_of_payment="Cash", p
         if not discount_account:
             frappe.throw(_("Supplier Discount Account is not set in POS Settings"))
 
-    # Get payable account
-    payable_account = frappe.db.get_value("Company", company, "default_payable_account")
+    # Get the supplier's payable account (party -> supplier group -> company default)
+    from erpnext.accounts.party import get_party_account
+
+    payable_account = get_party_account("Supplier", supplier, company)
     if not payable_account:
-        frappe.throw(_("Default Payable Account not set for Company {0}").format(company))
+        frappe.throw(_("Payable Account not set for Supplier {0} in Company {1}").format(supplier, company))
 
     # Get mode of payment account
     mode_account = frappe.db.get_value("Mode of Payment Account", {"parent": mode_of_payment, "company": company}, "default_account")
@@ -171,10 +173,32 @@ def create_supplier_payment(supplier, company, amount, mode_of_payment="Cash", p
     # Allocate against outstanding purchase invoices so a cash discount
     # can be booked correctly through the deductions table
     if payment_type == "Pay":
-        outstanding_invoices = frappe.get_all("Purchase Invoice",
-            filters={"supplier": supplier, "company": company, "docstatus": 1, "outstanding_amount": [">", 0]},
-            fields=["name", "outstanding_amount", "grand_total", "posting_date"],
-            order_by="posting_date asc")
+        # Read outstanding from the Payment Ledger (same source ERPNext validates
+        # against) instead of Purchase Invoice.outstanding_amount, which may be
+        # stale or booked against a different payable account
+        from erpnext.accounts.doctype.payment_entry.payment_entry import (
+            get_outstanding_reference_documents,
+        )
+
+        outstanding_refs = get_outstanding_reference_documents(
+            {
+                "posting_date": nowdate(),
+                "company": company,
+                "party_type": "Supplier",
+                "party": supplier,
+                "payment_type": "Pay",
+                "party_account": payable_account,
+                "get_outstanding_invoices": True,
+            },
+            validate=True,
+        ) or []
+        outstanding_invoices = sorted(
+            (
+                frappe._dict(d) for d in outstanding_refs
+                if d.get("voucher_type") == "Purchase Invoice" and flt(d.get("outstanding_amount")) > 0
+            ),
+            key=lambda d: (str(d.get("posting_date") or ""), d.voucher_no),
+        )
 
         remaining = amount + discount_amount
         for inv in outstanding_invoices:
@@ -185,8 +209,9 @@ def create_supplier_payment(supplier, company, amount, mode_of_payment="Cash", p
                 continue
             pe.append("references", {
                 "reference_doctype": "Purchase Invoice",
-                "reference_name": inv.name,
-                "total_amount": inv.grand_total,
+                "reference_name": inv.voucher_no,
+                "payment_term": inv.get("payment_term"),
+                "total_amount": inv.invoice_amount,
                 "outstanding_amount": inv.outstanding_amount,
                 "allocated_amount": alloc,
             })

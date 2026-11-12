@@ -2023,3 +2023,4 @@
 "Confirm Shift Closing","تأكيد إغلاق الوردية",""
 "Are you sure you want to close the shift? This action cannot be undone, and you will not be able to make sales until a new shift is opened.","هل أنت متأكد من إغلاق الوردية؟ لا يمكن التراجع عن هذا الإجراء، ولن تتمكن من البيع حتى تفتح وردية جديدة.",""
 "Yes, Close Shift","نعم، أغلق الوردية",""
+"Payable Account not set for Supplier {0} in Company {1}","حساب الدائنين غير محدد للمورد {0} في الشركة {1}",""
